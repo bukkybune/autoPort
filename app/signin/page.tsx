@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { signIn } from "next-auth/react";
+import { useState, useEffect } from "react";
+import { signIn, useSession } from "next-auth/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Github, Chrome, Mail, Lock } from "lucide-react";
@@ -9,8 +9,15 @@ import { Github, Chrome, Mail, Lock } from "lucide-react";
 type LoadingProvider = "github" | "google" | "email" | null;
 
 export default function SignInPage() {
+  const { data: session, status } = useSession();
   const router = useRouter();
   const [loading, setLoading] = useState<LoadingProvider>(null);
+
+  useEffect(() => {
+    if (status === "authenticated") {
+      router.replace("/dashboard");
+    }
+  }, [status, router]);
   const [error, setError] = useState<string | null>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -26,6 +33,28 @@ export default function SignInPage() {
       );
       setLoading(null);
     }
+  }
+
+  if (status === "loading") {
+    return (
+      <main className="min-h-[calc(100vh-4rem)] bg-slate-950 text-slate-100 flex items-center justify-center px-4 py-10">
+        <div className="flex flex-col items-center gap-4" role="status" aria-live="polite">
+          <div className="h-10 w-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+          <p className="text-sm text-slate-400">Loading…</p>
+        </div>
+      </main>
+    );
+  }
+
+  if (status === "authenticated") {
+    return (
+      <main className="min-h-[calc(100vh-4rem)] bg-slate-950 text-slate-100 flex items-center justify-center px-4 py-10">
+        <div className="flex flex-col items-center gap-4">
+          <div className="h-10 w-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+          <p className="text-sm text-slate-400">Redirecting to dashboard…</p>
+        </div>
+      </main>
+    );
   }
 
   async function handleCredentials(e: React.FormEvent) {
