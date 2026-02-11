@@ -1,8 +1,14 @@
 "use client";
 
 import type { GitHubRepo } from "../types/github";
-import { useMemo, useState } from "react";
+import {
+  DASHBOARD_SELECTION_KEY,
+  SELECTED_REPOS_KEY,
+  CUSTOMIZED_PROJECTS_KEY,
+} from "../types/customize";
+import { useMemo, useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 type DashboardClientProps = {
   user: {
@@ -23,13 +29,84 @@ export function DashboardClient({
   initialRepos,
   githubError = null,
 }: DashboardClientProps) {
-  const [selected, setSelected] = useState<Set<number>>(
-    () => new Set<number>()
-  );
+  const router = useRouter();
+  const [selected, setSelected] = useState<Set<number>>(() => new Set<number>());
   const [disconnectError, setDisconnectError] = useState<string | null>(null);
   const [disconnecting, setDisconnecting] = useState(false);
+  const [isNavigating, setIsNavigating] = useState(false);
+  const [restoredCount, setRestoredCount] = useState<number | null>(null);
+
+  const sortedRepos = useMemo(
+    () =>
+      [...initialRepos].sort(
+        (a, b) => b.stargazers_count - a.stargazers_count
+      ),
+    [initialRepos]
+  );
+
+  // Restore selection from sessionStorage on mount (only ids that exist in current repos)
+  useEffect(() => {
+    if (sortedRepos.length === 0) return;
+    try {
+      const stored = sessionStorage.getItem(DASHBOARD_SELECTION_KEY);
+      if (!stored) return;
+      const parsed: number[] = JSON.parse(stored);
+      if (!Array.isArray(parsed)) return;
+      const validIds = new Set(sortedRepos.map((r) => r.id));
+      const restored = new Set(parsed.filter((id) => validIds.has(id)));
+      if (restored.size > 0) {
+        setSelected(restored);
+        setRestoredCount(restored.size);
+        const t = setTimeout(() => setRestoredCount(null), 4000);
+        return () => clearTimeout(t);
+      }
+    } catch {
+      sessionStorage.removeItem(DASHBOARD_SELECTION_KEY);
+    }
+  }, [sortedRepos.length]);
+
+  // Persist selection whenever it changes
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (selected.size === 0) {
+      sessionStorage.removeItem(DASHBOARD_SELECTION_KEY);
+      return;
+    }
+    try {
+      sessionStorage.setItem(
+        DASHBOARD_SELECTION_KEY,
+        JSON.stringify([...selected])
+      );
+    } catch (e) {
+      console.error("Failed to persist selection:", e);
+    }
+  }, [selected]);
 
   const selectionCount = selected.size;
+  const hasCustomizedBefore =
+    typeof window !== "undefined" &&
+    !!sessionStorage.getItem(CUSTOMIZED_PROJECTS_KEY);
+
+  const handleCreatePortfolio = () => {
+    const selectedRepos = sortedRepos.filter((r) => selected.has(r.id));
+    if (selectedRepos.length === 0) return;
+    try {
+      sessionStorage.setItem(SELECTED_REPOS_KEY, JSON.stringify(selectedRepos));
+      setIsNavigating(true);
+      router.push("/customize");
+    } catch (e) {
+      console.error("Failed to save selection:", e);
+    }
+  };
+
+  const handleSelectAll = () => {
+    setSelected(new Set(sortedRepos.map((r) => r.id)));
+  };
+
+  const handleClearAll = () => {
+    setSelected(new Set());
+    sessionStorage.removeItem(DASHBOARD_SELECTION_KEY);
+  };
 
   const handleToggle = (id: number) => {
     setSelected((prev) => {
@@ -42,14 +119,6 @@ export function DashboardClient({
       return next;
     });
   };
-
-  const sortedRepos = useMemo(
-    () =>
-      [...initialRepos].sort(
-        (a, b) => b.stargazers_count - a.stargazers_count
-      ),
-    [initialRepos]
-  );
 
   return (
     <main className="min-h-[calc(100vh-4rem)] bg-slate-950 text-slate-100">
@@ -193,12 +262,45 @@ export function DashboardClient({
               </div>
             )}
 
+            {restoredCount != null && (
+              <p className="text-sm text-amber-200/90" role="status">
+                Restored {restoredCount} previously selected project
+                {restoredCount === 1 ? "" : "s"}.
+              </p>
+            )}
+
             {sortedRepos.length === 0 && !githubError ? (
               <p className="text-sm text-slate-400">
                 No repositories were found for this account.
               </p>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <>
+                {sortedRepos.length > 0 && (
+                  <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+                    <p className="text-sm text-slate-400">
+                      {selectionCount} of {sortedRepos.length} selected
+                    </p>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={handleSelectAll}
+                        disabled={selectionCount === sortedRepos.length}
+                        className="rounded-lg border border-slate-600 bg-slate-800 px-3 py-1.5 text-sm font-medium text-slate-200 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Select All
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleClearAll}
+                        disabled={selectionCount === 0}
+                        className="rounded-lg border border-slate-600 bg-slate-800 px-3 py-1.5 text-sm font-medium text-slate-200 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Clear All
+                      </button>
+                    </div>
+                  </div>
+                )}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {sortedRepos.map((repo) => {
                   const isSelected = selected.has(repo.id);
                   return (
@@ -240,7 +342,8 @@ export function DashboardClient({
                     </label>
                   );
                 })}
-              </div>
+                </div>
+              </>
             )}
           </section>
         )}
@@ -255,9 +358,15 @@ export function DashboardClient({
               </p>
               <button
                 type="button"
-                className="inline-flex items-center justify-center rounded-lg bg-amber-500 px-5 py-2 text-sm font-semibold text-slate-950 shadow-sm transition-colors hover:bg-amber-600"
+                onClick={handleCreatePortfolio}
+                disabled={isNavigating}
+                className="inline-flex items-center justify-center rounded-lg bg-amber-500 px-5 py-2 text-sm font-semibold text-slate-950 shadow-sm transition-colors hover:bg-amber-600 disabled:opacity-70 disabled:cursor-wait"
               >
-                Create Portfolio
+                {isNavigating
+                  ? "Loading…"
+                  : hasCustomizedBefore
+                    ? `Update Portfolio (${selectionCount})`
+                    : `Create Portfolio (${selectionCount})`}
               </button>
             </div>
           </div>

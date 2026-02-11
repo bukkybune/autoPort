@@ -21,7 +21,7 @@ export function encryptToken(plaintext: string): string {
   const key = getEncryptionKey();
   if (!key) {
     throw new Error(
-      "GITHUB_TOKEN_ENCRYPTION_KEY must be set to encrypt tokens (use: openssl rand -base64 32)"
+      "GITHUB_TOKEN_ENCRYPTION_KEY must be set to encrypt tokens. Add to .env.local: run `openssl rand -base64 32` and set GITHUB_TOKEN_ENCRYPTION_KEY to the output, then restart the dev server."
     );
   }
   const iv = randomBytes(IV_LENGTH);

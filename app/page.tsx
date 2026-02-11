@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import {
   ArrowRight,
   CheckCircle2,
@@ -70,6 +72,37 @@ function SectionHeading({
 }
 
 export default function LandingPage() {
+  const { status } = useSession();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (status === "authenticated") {
+      router.replace("/dashboard");
+    }
+  }, [status, router]);
+
+  if (status === "loading") {
+    return (
+      <main className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4" role="status" aria-live="polite">
+          <div className="h-10 w-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+          <p className="text-sm text-slate-400">Loading…</p>
+        </div>
+      </main>
+    );
+  }
+
+  if (status === "authenticated") {
+    return (
+      <main className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="h-10 w-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+          <p className="text-sm text-slate-400">Redirecting to dashboard…</p>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="min-h-screen bg-slate-950 text-slate-100">
       {/* Background */}
@@ -114,7 +147,7 @@ export default function LandingPage() {
 
             <div className="mt-10 flex flex-wrap items-center justify-center gap-3 ap-fade-up-400">
               <Badge>100% Free</Badge>
-              <Badge>No Sign-up</Badge>
+              <Badge>Quick Sign-up</Badge>
               <Badge>Export Ready</Badge>
             </div>
           </div>
