@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { decryptToken } from "@/lib/encryption";
 import type { GitHubRepo } from "../types/github";
 import { DashboardClient } from "./DashboardClient";
 
@@ -23,14 +24,16 @@ export default async function DashboardPage() {
   });
 
   let repos: GitHubRepo[] = [];
+  let githubError: string | null = null;
 
   if (connected) {
     try {
+      const accessToken = decryptToken(connected.accessToken);
       const res = await fetch(
         "https://api.github.com/user/repos?sort=updated&per_page=100",
         {
           headers: {
-            Authorization: `Bearer ${connected.accessToken}`,
+            Authorization: `Bearer ${accessToken}`,
             Accept: "application/vnd.github+json",
           },
           cache: "no-store",
@@ -39,7 +42,7 @@ export default async function DashboardPage() {
 
       if (res.ok) {
         const data = await res.json();
-        repos = data.map((r: any) => ({
+        repos = data.map((r: { id: number; name: string; description: string | null; stargazers_count: number; language: string | null; html_url: string }) => ({
           id: r.id,
           name: r.name,
           description: r.description,
@@ -47,9 +50,15 @@ export default async function DashboardPage() {
           language: r.language,
           html_url: r.html_url,
         }));
+      } else {
+        if (res.status === 401) {
+          githubError = "GitHub connection expired or was revoked. Please disconnect and connect again.";
+        } else {
+          githubError = "Could not load repositories from GitHub. Try again later.";
+        }
       }
     } catch {
-      // ignore, DashboardClient will show an error if needed in future
+      githubError = "Could not load repositories from GitHub. Try again later.";
     }
   }
 
@@ -62,12 +71,13 @@ export default async function DashboardPage() {
       connectedRepo={
         connected
           ? {
-            provider: connected.provider,
-            username: connected.username,
-          }
+              provider: connected.provider,
+              username: connected.username,
+            }
           : null
       }
       initialRepos={repos}
+      githubError={githubError}
     />
   );
 }

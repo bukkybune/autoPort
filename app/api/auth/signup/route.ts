@@ -37,9 +37,12 @@ export async function POST(req: Request) {
       where: { email: trimmedEmail },
     });
     if (existing) {
+      // Prevent timing attacks: run a fake hash with same workload so response time doesn't leak existence
+      await hash(String(password), 12);
+      // Generic message to prevent user enumeration
       return NextResponse.json(
-        { error: "An account with this email already exists" },
-        { status: 409 }
+        { error: "Unable to create account. Please try again or sign in." },
+        { status: 400 }
       );
     }
 

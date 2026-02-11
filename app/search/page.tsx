@@ -28,6 +28,10 @@ export default function SearchPage() {
           setError(`User "${trimmed}" not found.`);
           return;
         }
+        if (res.status === 403) {
+          setError("GitHub rate limit exceeded. Please try again later.");
+          return;
+        }
         throw new Error(`GitHub API error: ${res.status}`);
       }
 
@@ -108,7 +112,7 @@ export default function SearchPage() {
           </div>
         )}
 
-        {repos && !loading && (
+        {repos && repos.length > 0 && !loading && (
           <section className="mt-8 ap-fade-up" aria-label="Repositories">
             <p className="text-slate-600 dark:text-slate-400 mb-4">
               {repos.length} public {repos.length === 1 ? "repo" : "repos"}
@@ -144,7 +148,7 @@ export default function SearchPage() {
           </section>
         )}
 
-        {repos && repos.length === 0 && !loading && (
+        {repos?.length === 0 && !loading && (
           <p className="text-center text-slate-600 dark:text-slate-400 py-8">
             No public repositories found for this user.
           </p>

@@ -14,16 +14,20 @@ type DashboardClientProps = {
     username: string;
   } | null;
   initialRepos: GitHubRepo[];
+  githubError?: string | null;
 };
 
 export function DashboardClient({
   user,
   connectedRepo,
   initialRepos,
+  githubError = null,
 }: DashboardClientProps) {
   const [selected, setSelected] = useState<Set<number>>(
     () => new Set<number>()
   );
+  const [disconnectError, setDisconnectError] = useState<string | null>(null);
+  const [disconnecting, setDisconnecting] = useState(false);
 
   const selectionCount = selected.size;
 
@@ -110,13 +114,34 @@ export function DashboardClient({
                 </div>
                 <button
                   type="button"
-                  className="inline-flex items-center justify-center rounded-lg border border-emerald-500/50 px-4 py-1.5 text-xs font-medium text-emerald-100 hover:bg-emerald-500/10 transition-colors"
+                  className="inline-flex items-center justify-center rounded-lg border border-emerald-500/50 px-4 py-1.5 text-xs font-medium text-emerald-100 hover:bg-emerald-500/10 transition-colors disabled:opacity-50"
+                  disabled={disconnecting}
                   onClick={async () => {
-                    await fetch("/api/connect/github", { method: "DELETE" });
-                    window.location.reload();
+                    setDisconnectError(null);
+                    setDisconnecting(true);
+                    try {
+                      const res = await fetch("/api/connect/github", {
+                        method: "DELETE",
+                      });
+                      if (!res.ok) {
+                        const data = await res.json().catch(() => ({}));
+                        setDisconnectError(
+                          (data as { error?: string }).error ??
+                            "Failed to disconnect. Try again."
+                        );
+                        return;
+                      }
+                      window.location.reload();
+                    } catch {
+                      setDisconnectError(
+                        "Failed to disconnect. Check your connection and try again."
+                      );
+                    } finally {
+                      setDisconnecting(false);
+                    }
                   }}
                 >
-                  Disconnect
+                  {disconnecting ? "Disconnecting…" : "Disconnect"}
                 </button>
               </div>
 
@@ -138,6 +163,15 @@ export function DashboardClient({
           )}
         </section>
 
+        {githubError && (
+          <div
+            className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-200"
+            role="alert"
+          >
+            {githubError}
+          </div>
+        )}
+
         {/* Repository grid */}
         {connectedRepo && (
           <section className="space-y-4">
@@ -150,7 +184,16 @@ export function DashboardClient({
               </p>
             </div>
 
-            {sortedRepos.length === 0 ? (
+            {disconnectError && (
+              <div
+                className="rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-200"
+                role="alert"
+              >
+                {disconnectError}
+              </div>
+            )}
+
+            {sortedRepos.length === 0 && !githubError ? (
               <p className="text-sm text-slate-400">
                 No repositories were found for this account.
               </p>

@@ -27,8 +27,8 @@ export function Navbar() {
   const isDashboard = pathname?.startsWith("/dashboard");
 
   const baseClasses =
-    "sticky top-0 z-50 w-full transition-colors border-b border-slate-800 bg-slate-900/95 backdrop-blur";
-  const scrolledClasses = scrolled ? "bg-slate-900/95" : "";
+    "sticky top-0 z-50 w-full transition-colors duration-200 border-b border-slate-800 backdrop-blur";
+  const scrolledClasses = scrolled ? "bg-slate-900/95" : "bg-transparent";
 
   const displayName = session?.user?.name ?? session?.user?.email ?? "You";
   const initial = displayName.charAt(0).toUpperCase();

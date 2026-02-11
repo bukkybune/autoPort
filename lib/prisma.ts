@@ -12,16 +12,14 @@ function createPrismaClient() {
     throw new Error("DATABASE_URL is not set");
   }
 
-  const useInsecureSSL =
+  // Use SSL when the URL requires it (e.g. Supabase, sslmode=require). Always verify the certificate.
+  const useSSL =
     connectionString.includes("supabase.co") ||
-    connectionString.includes("sslmode=require") ||
-    process.env.NODE_ENV === "development";
+    connectionString.includes("sslmode=require");
 
   const pool = new Pool({
     connectionString,
-    ssl: useInsecureSSL
-      ? { rejectUnauthorized: false }
-      : undefined,
+    ssl: useSSL ? { rejectUnauthorized: true } : undefined,
   });
 
   const adapter = new PrismaPg(pool);
