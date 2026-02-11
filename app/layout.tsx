@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { AppProviders } from "./providers";
+import { Navbar } from "./components/Navbar";
 
 export const metadata: Metadata = {
-  title: "GitHub Repos",
-  description: "Browse public GitHub repositories by username",
+  title: "AutoPort",
+  description: "Turn your GitHub into a portfolio in minutes.",
 };
 
 export default function RootLayout({
@@ -13,7 +15,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className="antialiased min-h-screen">{children}</body>
+      <body className="antialiased min-h-screen bg-slate-950 text-slate-100">
+        <AppProviders>
+          <Navbar />
+          {children}
+        </AppProviders>
+      </body>
     </html>
   );
 }
+
