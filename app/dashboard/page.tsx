@@ -14,19 +14,28 @@ export default async function DashboardPage() {
 
   const userId = session.user.id;
 
-  const connected = await prisma.connectedRepo.findUnique({
-    where: {
-      userId_provider: {
-        userId,
-        provider: "github",
+  let connected: Awaited<ReturnType<typeof prisma.connectedRepo.findUnique>> = null;
+  let databaseError: string | null = null;
+
+  try {
+    connected = await prisma.connectedRepo.findUnique({
+      where: {
+        userId_provider: {
+          userId,
+          provider: "github",
+        },
       },
-    },
-  });
+    });
+  } catch (e) {
+    console.error("Database connection failed:", e);
+    databaseError =
+      "Can't reach the database. If you use Supabase, check the project is not paused and DATABASE_URL in .env.local is correct.";
+  }
 
   let repos: GitHubRepo[] = [];
-  let githubError: string | null = null;
+  let githubError: string | null = databaseError;
 
-  if (connected) {
+  if (connected && !databaseError) {
     try {
       const accessToken = decryptToken(connected.accessToken);
       const res = await fetch(

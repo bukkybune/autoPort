@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { signOut, useSession } from "next-auth/react";
-import { Menu, X } from "lucide-react";
+import { Menu, X, Zap } from "lucide-react";
 
 export function Navbar() {
   const { data: session, status } = useSession();
@@ -24,11 +24,8 @@ export function Navbar() {
     setOpen(false);
   }, [pathname]);
 
+  const isAuthenticated = status === "authenticated";
   const isDashboard = pathname?.startsWith("/dashboard");
-
-  const baseClasses =
-    "sticky top-0 z-50 w-full transition-colors duration-200 border-b border-slate-800 backdrop-blur";
-  const scrolledClasses = scrolled ? "bg-slate-900/95" : "bg-transparent";
 
   const displayName = session?.user?.name ?? session?.user?.email ?? "You";
   const initial = displayName.charAt(0).toUpperCase();
@@ -38,137 +35,141 @@ export function Navbar() {
   };
 
   return (
-    <header className={`${baseClasses} ${scrolledClasses}`}>
+    <header
+      className={`sticky top-0 z-50 w-full border-b border-slate-800/60 backdrop-blur-md transition-all duration-200 ${
+        scrolled ? "bg-slate-950/90" : "bg-transparent"
+      }`}
+    >
       <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between">
-          {/* Left side - Logo */}
-          <div className="flex items-center">
-            <Link
-              href="/"
-              className="text-xl font-bold tracking-tight bg-gradient-to-r from-blue-400 via-purple-400 to-amber-300 bg-clip-text text-transparent"
-            >
-              AutoPort
-            </Link>
-          </div>
 
-          {/* Right side - Nav links + User info */}
-          <div className="flex items-center gap-4">
-            <nav className="hidden md:flex items-center gap-6 text-sm text-slate-200">
-              <Link
-                href="#how-it-works"
-                className="hover:text-white transition-colors"
-              >
-                How it works
-              </Link>
-              <Link
-                href="/dashboard"
-                className={`hover:text-white transition-colors ${
-                  isDashboard ? "text-white font-semibold" : ""
-                }`}
-              >
-                Dashboard
-              </Link>
-            </nav>
-
-            <div className="hidden md:flex items-center gap-3">
-              {status === "authenticated" && session?.user ? (
-                <div className="relative">
-                  <button
-                    type="button"
-                    className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-sm text-slate-100 hover:bg-white/10 transition-colors"
-                    onClick={() => setOpen((v) => !v)}
-                  >
-                    <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-purple-500 text-xs font-semibold text-white">
-                      {initial}
-                    </span>
-                    <span className="max-w-[120px] truncate">{displayName}</span>
-                  </button>
-                  {open && (
-                    <div className="absolute right-0 mt-2 w-44 rounded-xl border border-white/10 bg-slate-950/95 shadow-lg backdrop-blur">
-                      <button
-                        type="button"
-                        className="block w-full px-3 py-2 text-left text-sm text-slate-100 hover:bg-white/5 rounded-t-xl"
-                        onClick={() => router.push("/dashboard")}
-                      >
-                        Dashboard
-                      </button>
-                      <button
-                        type="button"
-                        className="block w-full px-3 py-2 text-left text-sm text-slate-500 cursor-not-allowed opacity-60"
-                        disabled
-                      >
-                        Settings (soon)
-                      </button>
-                      <div className="my-1 border-t border-white/10" />
-                      <button
-                        type="button"
-                        className="block w-full px-3 py-2 text-left text-sm text-red-300 hover:bg-red-500/10 rounded-b-xl"
-                        onClick={handleSignOut}
-                      >
-                        Sign out
-                      </button>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <Link
-                  href="/signin"
-                  className="inline-flex items-center justify-center rounded-lg bg-amber-500 px-5 py-2.5 text-sm font-semibold text-slate-950 shadow-sm transition-colors hover:bg-amber-600 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 focus:ring-offset-slate-950"
-                >
-                  Sign In
-                </Link>
-              )}
+          {/* Logo */}
+          <Link href="/" className="flex items-center gap-2.5 text-[15px] font-bold tracking-tight text-slate-50">
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-500 shadow-sm shadow-amber-500/30">
+              <Zap className="h-4 w-4 text-slate-950" aria-hidden />
             </div>
+            AutoPort
+          </Link>
 
-            {/* Mobile menu button */}
-            <button
-              type="button"
-              className="inline-flex items-center justify-center rounded-lg p-2 text-slate-200 hover:bg-white/5 md:hidden"
-              onClick={() => setOpen((v) => !v)}
-              aria-label="Toggle navigation"
-            >
-              {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-            </button>
+          {/* Desktop nav */}
+          <div className="hidden md:flex items-center gap-6">
+            {isAuthenticated ? (
+              <nav className="flex items-center gap-6 text-sm text-slate-400">
+                <Link
+                  href="/dashboard"
+                  className={`transition-colors hover:text-slate-100 ${isDashboard ? "font-medium text-slate-100" : ""}`}
+                >
+                  Dashboard
+                </Link>
+              </nav>
+            ) : (
+              <nav className="flex items-center gap-6 text-sm text-slate-400">
+                <a href="#features" className="transition-colors hover:text-slate-100">Features</a>
+                <a href="#how-it-works" className="transition-colors hover:text-slate-100">How it works</a>
+                <a href="#templates" className="transition-colors hover:text-slate-100">Templates</a>
+              </nav>
+            )}
+
+            {isAuthenticated && session?.user ? (
+              <div className="relative">
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-slate-100 transition-colors hover:bg-white/10"
+                  onClick={() => setOpen((v) => !v)}
+                >
+                  <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-amber-400 to-amber-600 text-[11px] font-bold text-slate-950">
+                    {initial}
+                  </span>
+                  <span className="max-w-[120px] truncate">{displayName}</span>
+                </button>
+                {open && (
+                  <div className="absolute right-0 mt-2 w-44 rounded-xl border border-white/10 bg-slate-950/95 shadow-xl shadow-black/40 backdrop-blur-md">
+                    <button
+                      type="button"
+                      className="block w-full rounded-t-xl px-3 py-2.5 text-left text-sm text-slate-100 hover:bg-white/5"
+                      onClick={() => { setOpen(false); router.push("/dashboard"); }}
+                    >
+                      Dashboard
+                    </button>
+                    <button
+                      type="button"
+                      className="block w-full cursor-not-allowed px-3 py-2.5 text-left text-sm text-slate-500 opacity-60"
+                      disabled
+                    >
+                      Settings (soon)
+                    </button>
+                    <div className="my-1 border-t border-white/10" />
+                    <button
+                      type="button"
+                      className="block w-full rounded-b-xl px-3 py-2.5 text-left text-sm text-red-300 hover:bg-red-500/10"
+                      onClick={handleSignOut}
+                    >
+                      Sign out
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <Link
+                href="/signin"
+                className="inline-flex items-center justify-center rounded-xl bg-amber-500 px-5 py-2.5 text-sm font-semibold text-slate-950 shadow-sm shadow-amber-500/20 transition hover:bg-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 focus:ring-offset-slate-950"
+              >
+                Get Started Free
+              </Link>
+            )}
           </div>
+
+          {/* Mobile hamburger */}
+          <button
+            type="button"
+            className="inline-flex items-center justify-center rounded-lg p-2 text-slate-300 hover:bg-white/5 md:hidden"
+            onClick={() => setOpen((v) => !v)}
+            aria-label="Toggle navigation"
+          >
+            {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
         </div>
       </div>
 
       {/* Mobile menu */}
       {open && (
-        <div className="border-t border-white/10 bg-slate-950/95 px-4 py-3 md:hidden">
-          <nav className="flex flex-col gap-2 text-sm text-slate-200">
-            <Link
-              href="#how-it-works"
-              className="py-1 hover:text-white transition-colors"
-            >
-              How it works
-            </Link>
-            <Link
-              href="/dashboard"
-              className="py-1 hover:text-white transition-colors"
-            >
-              Dashboard
-            </Link>
-            {status === "authenticated" && session?.user ? (
-              <button
-                type="button"
-                className="mt-2 inline-flex items-center justify-center rounded-lg bg-white/5 px-4 py-2 text-sm font-semibold text-slate-100 hover:bg-white/10 transition-colors"
-                onClick={handleSignOut}
-              >
-                Sign out
-              </button>
-            ) : (
+        <div className="border-t border-white/10 bg-slate-950/95 px-4 py-4 md:hidden">
+          <nav className="flex flex-col gap-1 text-sm">
+            {isAuthenticated ? (
               <Link
-                href="/signin"
-                className="mt-2 inline-flex items-center justify-center rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-amber-600 transition-colors"
+                href="/dashboard"
+                className="rounded-lg px-2 py-2 text-slate-200 transition-colors hover:bg-white/5 hover:text-white"
               >
-                Sign In
+                Dashboard
               </Link>
+            ) : (
+              <>
+                <a href="#features" className="rounded-lg px-2 py-2 text-slate-200 transition-colors hover:bg-white/5 hover:text-white">Features</a>
+                <a href="#how-it-works" className="rounded-lg px-2 py-2 text-slate-200 transition-colors hover:bg-white/5 hover:text-white">How it works</a>
+                <a href="#templates" className="rounded-lg px-2 py-2 text-slate-200 transition-colors hover:bg-white/5 hover:text-white">Templates</a>
+              </>
             )}
+            <div className="mt-2 border-t border-white/10 pt-2">
+              {isAuthenticated ? (
+                <button
+                  type="button"
+                  className="w-full inline-flex items-center justify-center rounded-lg bg-white/5 px-4 py-2.5 text-sm font-medium text-slate-100 transition-colors hover:bg-white/10"
+                  onClick={handleSignOut}
+                >
+                  Sign out
+                </button>
+              ) : (
+                <Link
+                  href="/signin"
+                  className="block text-center rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-semibold text-slate-950 transition-colors hover:bg-amber-400"
+                >
+                  Get Started Free
+                </Link>
+              )}
+            </div>
           </nav>
         </div>
       )}
     </header>
   );
 }
-

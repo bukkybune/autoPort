@@ -41,9 +41,16 @@ function createPrismaClient() {
     ? { rejectUnauthorized: !acceptInsecure }
     : undefined;
 
+  // In dev, use a longer connection timeout so slow SSL handshake with Supabase doesn't trigger "Can't reach"
+  const isSupabase =
+    connectionString.includes("supabase.co") ||
+    connectionString.includes("supabase.com");
   const pool = new Pool({
     connectionString,
     ssl: sslOptions,
+    ...(isSupabase && process.env.NODE_ENV !== "production"
+      ? { connectionTimeoutMillis: 15000 }
+      : {}),
   });
 
   const adapter = new PrismaPg(pool);

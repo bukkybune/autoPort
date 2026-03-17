@@ -92,32 +92,36 @@ export async function GET(req: NextRequest) {
     return redirectWithError("github_token");
   }
 
-  const response = NextResponse.redirect(new URL("/dashboard", process.env.NEXTAUTH_URL));
-  response.cookies.set(STATE_COOKIE_NAME, "", { path: "/", maxAge: 0 });
-
-  await prisma.connectedRepo.upsert({
-    where: {
-      userId_provider: {
+  try {
+    await prisma.connectedRepo.upsert({
+      where: {
+        userId_provider: {
+          userId: session.user.id,
+          provider: "github",
+        },
+      },
+      create: {
         userId: session.user.id,
         provider: "github",
+        username: ghUser.login,
+        accessToken: encryptedAccess,
+        refreshToken: encryptedRefresh,
+        scope: tokenJson.scope ?? null,
       },
-    },
-    create: {
-      userId: session.user.id,
-      provider: "github",
-      username: ghUser.login,
-      accessToken: encryptedAccess,
-      refreshToken: encryptedRefresh,
-      scope: tokenJson.scope ?? null,
-    },
-    update: {
-      username: ghUser.login,
-      accessToken: encryptedAccess,
-      refreshToken: encryptedRefresh,
-      scope: tokenJson.scope ?? null,
-    },
-  });
+      update: {
+        username: ghUser.login,
+        accessToken: encryptedAccess,
+        refreshToken: encryptedRefresh,
+        scope: tokenJson.scope ?? null,
+      },
+    });
+  } catch (err) {
+    console.error("Failed to save GitHub connection:", err);
+    return redirectWithError("github_db");
+  }
 
+  const response = NextResponse.redirect(new URL("/dashboard", process.env.NEXTAUTH_URL));
+  response.cookies.set(STATE_COOKIE_NAME, "", { path: "/", maxAge: 0 });
   return response;
 }
 
