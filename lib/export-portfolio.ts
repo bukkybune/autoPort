@@ -303,8 +303,20 @@ function renderAurora(config: PortfolioConfig): string {
   const projects = sorted(config.projects.items || []);
   const c = config.contact;
 
+  let html = `<style>
+    .max{max-width:960px;margin:0 auto;padding:80px 24px;}
+    .badge{display:inline-flex;align-items:center;padding:4px 12px;border-radius:6px;font-size:11px;font-weight:600;background:rgba(255,45,120,0.08);color:#ff2d78;border:1px solid rgba(255,45,120,0.2);}
+    .badge-cyan{display:inline-flex;align-items:center;padding:4px 12px;border-radius:6px;font-size:11px;font-weight:600;background:rgba(0,229,255,0.08);color:#00e5ff;border:1px solid rgba(0,229,255,0.2);}
+    .card{background:#0d0d14;border:1px solid #1a1a2e;border-radius:16px;padding:28px;transition:transform 0.3s,box-shadow 0.3s,border-color 0.3s;}
+    .card:hover{transform:translateY(-4px);box-shadow:0 20px 60px rgba(255,45,120,0.1);border-color:rgba(255,45,120,0.25);}
+    .btn{display:inline-flex;align-items:center;gap:8px;padding:13px 28px;border-radius:10px;font-weight:700;font-size:14px;background:#ff2d78;color:#fff;text-decoration:none;box-shadow:0 0 20px rgba(255,45,120,0.4);transition:box-shadow 0.3s,transform 0.3s;}
+    .btn:hover{box-shadow:0 0 40px rgba(255,45,120,0.7);transform:translateY(-2px);}
+    .btn-cyan{display:inline-flex;align-items:center;gap:8px;padding:13px 28px;border-radius:10px;font-weight:700;font-size:14px;background:transparent;color:#00e5ff;border:1px solid #00e5ff;text-decoration:none;transition:background 0.3s,box-shadow 0.3s;}
+    .btn-cyan:hover{background:rgba(0,229,255,0.08);box-shadow:0 0 30px rgba(0,229,255,0.4);}
+    .grid-bg{background-image:linear-gradient(rgba(255,45,120,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(255,45,120,0.03) 1px,transparent 1px);background-size:48px 48px;}
+  </style>`;
 
-  let html = `<div style="background:#050508;color:#f0f0ff;font-family:Inter,sans-serif;min-height:100vh;">`;
+  html += `<div style="background:#050508;color:#f0f0ff;font-family:Inter,sans-serif;min-height:100vh;">`;
 
   if (config.hero.enabled) {
     html += `<section class="grid-bg" style="min-height:100vh;display:flex;align-items:center;padding:80px 24px;position:relative;overflow:hidden;">

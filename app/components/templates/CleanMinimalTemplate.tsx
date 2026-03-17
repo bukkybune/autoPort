@@ -32,7 +32,12 @@ export function CleanMinimalTemplate({ config }: { config: PortfolioConfig }) {
 
   const schemeId = config.theme?.colorScheme ?? "warm-earth";
   const schemeColors = schemeId === "custom"
-    ? { accent: config.theme?.customColors?.accent ?? CM_ACCENTS["warm-earth"].accent, accentLight: CM_ACCENTS["warm-earth"].accentLight }
+    ? {
+        accent: config.theme?.customColors?.accent ?? CM_ACCENTS["warm-earth"].accent,
+        accentLight: config.theme?.customColors?.accent
+          ? config.theme.customColors.accent + "26"
+          : CM_ACCENTS["warm-earth"].accentLight,
+      }
     : (CM_ACCENTS[schemeId as Exclude<ColorSchemeId, "custom">] ?? CM_ACCENTS["warm-earth"]);
   const C = { ...CM_BASE, ...schemeColors };
 

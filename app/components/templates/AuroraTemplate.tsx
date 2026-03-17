@@ -64,9 +64,24 @@ export function AuroraTemplate({ config }: { config: PortfolioConfig }) {
   const year = new Date().getFullYear();
 
   const schemeId = config.theme?.colorScheme ?? "navy";
-  const palette = schemeId === "custom"
-    ? PALETTES.navy
-    : (PALETTES[schemeId as Exclude<ColorSchemeId, "custom">] ?? PALETTES.navy);
+  let palette: AuroraPalette;
+  if (schemeId === "custom") {
+    const cc = config.theme?.customColors;
+    if (cc) {
+      palette = {
+        accent: cc.accent,
+        accentPurple: cc.secondary,
+        accentPink: cc.primary,
+        blob1: cc.accent + "2e",
+        blob2: cc.secondary + "26",
+        blob3: cc.primary + "1f",
+      };
+    } else {
+      palette = PALETTES.navy;
+    }
+  } else {
+    palette = PALETTES[schemeId as Exclude<ColorSchemeId, "custom">] ?? PALETTES.navy;
+  }
   const C = { ...BASE, ...palette };
 
   return (
