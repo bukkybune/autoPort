@@ -2,14 +2,16 @@
 
 import type { GitHubRepo } from "../types/github";
 import {
-  DASHBOARD_SELECTION_KEY,
   SELECTED_REPOS_KEY,
   CUSTOMIZED_PROJECTS_KEY,
 } from "../types/customize";
 import { useMemo, useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Github, Star } from "lucide-react";
+import { Github, Star, HelpCircle } from "lucide-react";
+import { Tour, type TourStep } from "../components/Tour";
+
+const TOUR_KEY = "autoport_tour_dashboard_v1";
 
 type DashboardClientProps = {
   user: {
@@ -63,45 +65,12 @@ export function DashboardClient({
   const [disconnectError, setDisconnectError] = useState<string | null>(null);
   const [disconnecting, setDisconnecting] = useState(false);
   const [isNavigating, setIsNavigating] = useState(false);
-  const [restoredCount, setRestoredCount] = useState<number | null>(null);
 
   const sortedRepos = useMemo(
     () => [...initialRepos].sort((a, b) => b.stargazers_count - a.stargazers_count),
     [initialRepos]
   );
 
-  useEffect(() => {
-    if (sortedRepos.length === 0) return;
-    try {
-      const stored = sessionStorage.getItem(DASHBOARD_SELECTION_KEY);
-      if (!stored) return;
-      const parsed: number[] = JSON.parse(stored);
-      if (!Array.isArray(parsed)) return;
-      const validIds = new Set(sortedRepos.map((r) => r.id));
-      const restored = new Set(parsed.filter((id) => validIds.has(id)));
-      if (restored.size > 0) {
-        setSelected(restored);
-        setRestoredCount(restored.size);
-        const t = setTimeout(() => setRestoredCount(null), 4000);
-        return () => clearTimeout(t);
-      }
-    } catch {
-      sessionStorage.removeItem(DASHBOARD_SELECTION_KEY);
-    }
-  }, [sortedRepos.length]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (selected.size === 0) {
-      sessionStorage.removeItem(DASHBOARD_SELECTION_KEY);
-      return;
-    }
-    try {
-      sessionStorage.setItem(DASHBOARD_SELECTION_KEY, JSON.stringify(Array.from(selected)));
-    } catch (e) {
-      console.error("Failed to persist selection:", e);
-    }
-  }, [selected]);
 
   const selectionCount = selected.size;
   const hasCustomizedBefore =
@@ -120,10 +89,7 @@ export function DashboardClient({
   };
 
   const handleSelectAll = () => setSelected(new Set(sortedRepos.map((r) => r.id)));
-  const handleClearAll = () => {
-    setSelected(new Set());
-    sessionStorage.removeItem(DASHBOARD_SELECTION_KEY);
-  };
+  const handleClearAll = () => setSelected(new Set());
 
   const handleToggle = (id: number) => {
     setSelected((prev) => {
@@ -134,10 +100,74 @@ export function DashboardClient({
     });
   };
 
+  const [showTour, setShowTour] = useState(false);
+
+  useEffect(() => {
+    if (!localStorage.getItem(TOUR_KEY)) setShowTour(true);
+  }, []);
+
+  function completeTour() {
+    localStorage.setItem(TOUR_KEY, "1");
+    setShowTour(false);
+  }
+
+  const tourSteps: TourStep[] = connectedRepo
+    ? [
+        {
+          title: "Welcome to AutoPort!",
+          body: "Let me give you a quick tour of your dashboard. It only takes 30 seconds.",
+        },
+        {
+          target: "github-connection",
+          title: "GitHub Connected",
+          body: "Your GitHub account is linked. AutoPort only reads public repo data — nothing else. Disconnect anytime from here.",
+        },
+        {
+          target: "repos-section",
+          title: "Your Repositories",
+          body: "All your public repos appear here, sorted by stars. Click any card to select it for your portfolio.",
+        },
+        {
+          target: "repos-actions",
+          title: "Select & Build",
+          body: "Use Select All to grab everything, or pick individually. Once you've selected repos, a 'Create Portfolio' button appears at the bottom.",
+        },
+      ]
+    : [
+        {
+          title: "Welcome to AutoPort!",
+          body: "Build a beautiful developer portfolio in minutes, straight from your GitHub repos. Let me show you how.",
+        },
+        {
+          target: "github-section",
+          title: "Step 1 — Connect GitHub",
+          body: "Click 'Connect GitHub' to import your public repositories. We only read names, descriptions, stars, and languages. Disconnect anytime.",
+        },
+        {
+          title: "You're all set!",
+          body: "Once connected, select the repos you want to showcase and hit 'Create Portfolio' to start customizing. Takes about 2 minutes.",
+        },
+      ];
+
   const firstName = user.name ? user.name.split(" ")[0] : null;
 
   return (
     <main className="min-h-[calc(100vh-4rem)] bg-slate-950 text-slate-100">
+      {showTour && <Tour steps={tourSteps} onDone={completeTour} />}
+
+      {/* Take tour button */}
+      {!showTour && (
+        <button
+          type="button"
+          onClick={() => setShowTour(true)}
+          className="fixed bottom-6 right-6 z-30 flex items-center gap-1.5 rounded-full border border-slate-700 bg-slate-900/90 px-3 py-2 text-xs font-medium text-slate-400 shadow-lg backdrop-blur hover:border-amber-500/50 hover:text-amber-400 transition-colors"
+          aria-label="Take tour"
+        >
+          <HelpCircle className="h-3.5 w-3.5" />
+          Tour
+        </button>
+      )}
+
       <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-10 space-y-10">
 
         {/* Greeting */}
@@ -154,7 +184,7 @@ export function DashboardClient({
         </section>
 
         {/* GitHub connection */}
-        <section className="space-y-4">
+        <section className="space-y-4" data-tour="github-section">
           <h2 className="text-base font-semibold text-slate-100">GitHub Connection</h2>
 
           {!connectedRepo ? (
@@ -177,7 +207,7 @@ export function DashboardClient({
             </div>
           ) : (
             /* ── Connected state ── */
-            <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/5 px-5 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div data-tour="github-connection" className="rounded-2xl border border-emerald-500/30 bg-emerald-500/5 px-5 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <div>
                 <p className="text-sm font-medium text-emerald-300">GitHub connected</p>
                 <p className="text-sm text-emerald-100/70 mt-0.5">
@@ -220,7 +250,7 @@ export function DashboardClient({
 
         {/* Repository grid */}
         {connectedRepo && (
-          <section className="space-y-4">
+          <section className="space-y-4" data-tour="repos-section">
             <div className="flex items-center justify-between gap-3">
               <h2 className="text-base font-semibold text-slate-100">
                 Your repositories
@@ -234,18 +264,12 @@ export function DashboardClient({
               </div>
             )}
 
-            {restoredCount != null && (
-              <p className="text-sm text-amber-200/90" role="status">
-                Restored {restoredCount} previously selected project{restoredCount === 1 ? "" : "s"}.
-              </p>
-            )}
-
-            {sortedRepos.length === 0 && !githubError ? (
+{sortedRepos.length === 0 && !githubError ? (
               <p className="text-sm text-slate-400">No repositories were found for this account.</p>
             ) : (
               <>
                 {sortedRepos.length > 0 && (
-                  <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex flex-wrap items-center justify-between gap-3" data-tour="repos-actions">
                     <p className="text-sm text-slate-500">
                       <span className="text-slate-200 font-medium">{selectionCount}</span> of {sortedRepos.length} selected
                     </p>

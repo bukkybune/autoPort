@@ -4,7 +4,11 @@ import { NextResponse } from "next/server";
 export default edgeAuth((req) => {
   const isLoggedIn = !!req.auth;
   const pathname = req.nextUrl.pathname;
-  const isProtected = pathname.startsWith("/dashboard") || pathname.startsWith("/customize") || pathname.startsWith("/templates");
+  const isProtected =
+    pathname.startsWith("/dashboard") ||
+    pathname.startsWith("/customize") ||
+    pathname.startsWith("/templates") ||
+    pathname.startsWith("/settings");
 
   if (isProtected && !isLoggedIn) {
     return NextResponse.redirect(new URL("/signin", req.url));
@@ -14,5 +18,5 @@ export default edgeAuth((req) => {
 });
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/customize/:path*", "/templates/:path*"],
+  matcher: ["/dashboard/:path*", "/customize/:path*", "/templates/:path*", "/settings/:path*"],
 };
