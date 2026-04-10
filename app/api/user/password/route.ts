@@ -41,7 +41,7 @@ export async function PATCH(req: Request) {
 
     const valid = await compare(String(currentPassword), user.password);
     if (!valid) {
-      return NextResponse.json({ error: "Current password is incorrect" }, { status: 400 });
+      return NextResponse.json({ error: "Current password is incorrect" }, { status: 403 });
     }
 
     const hashed = await hash(String(newPassword), 12);

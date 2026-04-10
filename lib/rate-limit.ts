@@ -62,7 +62,7 @@ export function rateLimit(
 
 /** Extract a best-effort IP from Next.js request headers. */
 export function getClientIp(req: Request): string {
-  const headers = req instanceof Request ? req.headers : new Headers();
+  const headers = req.headers;
   return (
     headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
     headers.get("x-real-ip") ??

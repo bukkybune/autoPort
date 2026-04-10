@@ -21,7 +21,7 @@ export default function GlobalError({
         <p className="text-slate-400 text-sm leading-relaxed">
           An unexpected error occurred. If this keeps happening, please{" "}
           <a
-            href="https://github.com/anthropics/claude-code/issues"
+            href="https://github.com/bukkybune/autoPort/issues"
             className="text-amber-400 hover:text-amber-300 underline"
           >
             report it

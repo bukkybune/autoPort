@@ -46,14 +46,14 @@ export default function HelpPage() {
         {/* Header */}
         <div>
           <div className="inline-flex items-center gap-2 rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-400 mb-4">
-            <Zap className="h-3.5 w-3.5" /> Documentation
+            <Zap className="h-3.5 w-3.5" aria-hidden="true" /> Documentation
           </div>
           <h1 className="text-3xl font-bold text-slate-50">Help & Documentation</h1>
           <p className="mt-2 text-slate-400">Everything you need to build and export your developer portfolio.</p>
         </div>
 
         {/* Getting Started */}
-        <Card icon={<Github className="h-5 w-5" />} title="Getting Started">
+        <Card icon={<Github className="h-5 w-5" aria-hidden="true" />} title="Getting Started">
           <Step n={1} title="Create an account">
             <p>Sign up with your email and password, or use Google or GitHub OAuth for one-click sign-in.</p>
           </Step>
@@ -70,7 +70,7 @@ export default function HelpPage() {
         </Card>
 
         {/* Customize sections */}
-        <Card icon={<Palette className="h-5 w-5" />} title="Customizing Your Portfolio">
+        <Card icon={<Palette className="h-5 w-5" aria-hidden="true" />} title="Customizing Your Portfolio">
           <div className="space-y-3 text-sm text-slate-400 leading-relaxed">
             <div>
               <p className="font-semibold text-slate-200 mb-1">Sections</p>
@@ -104,7 +104,7 @@ export default function HelpPage() {
         </Card>
 
         {/* Export */}
-        <Card icon={<Download className="h-5 w-5" />} title="Exporting & Hosting">
+        <Card icon={<Download className="h-5 w-5" aria-hidden="true" />} title="Exporting & Hosting">
           <div className="space-y-3 text-sm text-slate-400 leading-relaxed">
             <p>AutoPort exports your portfolio as a <strong className="text-slate-300">single self-contained HTML file</strong> — no frameworks, no dependencies, no build step. You can host it anywhere:</p>
             <ul className="space-y-1.5 pl-4">

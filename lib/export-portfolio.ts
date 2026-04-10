@@ -122,8 +122,8 @@ function socialLinks(contact: PortfolioConfig["contact"], color: string): string
 /* ═══════════════════════════════════════
    1. MINIMAL PRO  (Brittany Chiang navy)
 ═══════════════════════════════════════ */
-const MP_LIGHT = { bg: "#f0f4f8", bgCard: "#e2e8f0", text: "#1a2a4a", muted: "#4a5568", divider: "#cbd5e1" };
-const MP_DARK  = { bg: "#0a192f", bgCard: "#112240", text: "#ccd6f6", muted: "#8892b0", divider: "#233554" };
+const MP_LIGHT = { bg: "#f0f4f8", bgCard: "#e2e8f0", bgHover: "#cbd5e1", text: "#1a2a4a", muted: "#4a5568", divider: "#cbd5e1" };
+const MP_DARK  = { bg: "#0a192f", bgCard: "#112240", bgHover: "#1e3a5f", text: "#ccd6f6", muted: "#8892b0", divider: "#233554" };
 
 function renderMinimalPro(config: PortfolioConfig): string {
   const name = escapeHtml(config.hero.name || "Portfolio");

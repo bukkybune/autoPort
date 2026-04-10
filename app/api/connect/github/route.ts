@@ -14,6 +14,12 @@ export async function GET() {
     return NextResponse.redirect(new URL("/signin", process.env.NEXTAUTH_URL));
   }
 
+  const clientId = process.env.GITHUB_REPO_CLIENT_ID;
+  if (!clientId) {
+    console.error("GITHUB_REPO_CLIENT_ID is not set");
+    return NextResponse.json({ error: "GitHub OAuth is not configured" }, { status: 500 });
+  }
+
   const state = randomBytes(32).toString("hex");
   const redirectUri = new URL(
     "/api/connect/github/callback",
@@ -21,7 +27,7 @@ export async function GET() {
   ).toString();
 
   const params = new URLSearchParams({
-    client_id: process.env.GITHUB_REPO_CLIENT_ID ?? "",
+    client_id: clientId,
     redirect_uri: redirectUri,
     scope: "public_repo read:user",
     state,

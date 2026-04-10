@@ -149,13 +149,23 @@ export function MinimalProTemplate({ config }: { config: PortfolioConfig }) {
           {name}
         </span>
         <div className="hidden md:flex items-center gap-6">
-          {config.about.enabled && <a href="#about" className="mp-nav-link"><span style={{ color: C.accent }}>01.</span> About</a>}
-          {config.skills.enabled && <a href="#skills" className="mp-nav-link"><span style={{ color: C.accent }}>02.</span> Skills</a>}
-          {config.services?.enabled && services.length > 0 && <a href="#services" className="mp-nav-link"><span style={{ color: C.accent }}>03.</span> Services</a>}
-          {config.projects.enabled && <a href="#projects" className="mp-nav-link"><span style={{ color: C.accent }}>0{config.services?.enabled && services.length > 0 ? 4 : 3}.</span> Projects</a>}
-          {config.testimonials?.enabled && testimonials.length > 0 && <a href="#testimonials" className="mp-nav-link"><span style={{ color: C.accent }}>0{config.services?.enabled && services.length > 0 ? 5 : 4}.</span> Testimonials</a>}
-          {config.experience.enabled && config.experience.items?.length > 0 && <a href="#experience" className="mp-nav-link"><span style={{ color: C.accent }}>0{5 + (config.services?.enabled && services.length > 0 ? 1 : 0) + (config.testimonials?.enabled && testimonials.length > 0 ? 1 : 0)}.</span> Experience</a>}
-          <a href="#contact" className="mp-nav-link"><span style={{ color: C.accent }}>0{6 + (config.services?.enabled && services.length > 0 ? 1 : 0) + (config.testimonials?.enabled && testimonials.length > 0 ? 1 : 0)}.</span> Contact</a>
+          {(
+            [
+              config.about.enabled                                          && { id: "about",        label: "About" },
+              config.skills.enabled                                         && { id: "skills",       label: "Skills" },
+              (config.services?.enabled && services.length > 0)            && { id: "services",     label: "Services" },
+              config.projects.enabled                                       && { id: "projects",     label: "Projects" },
+              (config.testimonials?.enabled && testimonials.length > 0)    && { id: "testimonials", label: "Testimonials" },
+              (config.experience.enabled && config.experience.items?.length > 0) && { id: "experience", label: "Experience" },
+              { id: "contact", label: "Contact" },
+            ] as (false | { id: string; label: string })[]
+          )
+            .filter((s): s is { id: string; label: string } => Boolean(s))
+            .map((s, i) => (
+              <a key={s.id} href={`#${s.id}`} className="mp-nav-link">
+                <span style={{ color: C.accent }}>{String(i + 1).padStart(2, "0")}.</span> {s.label}
+              </a>
+            ))}
         </div>
       </nav>
 

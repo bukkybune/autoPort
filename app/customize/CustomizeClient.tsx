@@ -411,9 +411,12 @@ function AccordionSection({
 }) {
   return (
     <div className="border-b border-slate-800/70 last:border-b-0">
-      <div
-        className="flex items-center gap-2.5 px-4 py-3 cursor-pointer hover:bg-slate-800/40 transition-colors select-none"
+      <button
+        type="button"
+        className="flex w-full items-center gap-2.5 px-4 py-3 cursor-pointer hover:bg-slate-800/40 transition-colors select-none text-left"
         onClick={onToggle}
+        aria-expanded={isOpen}
+        aria-controls={`section-panel-${label.replace(/\s+/g, "-").toLowerCase()}`}
       >
         {!noCheckbox ? (
           <input
@@ -429,8 +432,9 @@ function AccordionSection({
         <span className={`shrink-0 transition-colors ${isOpen ? "text-amber-400" : "text-slate-500"}`}>{icon}</span>
         <span className={`flex-1 text-sm font-medium transition-colors ${isOpen ? "text-slate-100" : "text-slate-400"}`}>{label}</span>
         <ChevronDown className={`h-3.5 w-3.5 text-slate-600 transition-transform duration-200 ${isOpen ? "rotate-180 text-amber-500" : ""}`} />
-      </div>
+      </button>
       <div
+        id={`section-panel-${label.replace(/\s+/g, "-").toLowerCase()}`}
         className="grid transition-[grid-template-rows] duration-200 ease-in-out"
         style={{ gridTemplateRows: isOpen ? "1fr" : "0fr" }}
       >
@@ -511,18 +515,31 @@ export function CustomizeClient() {
     async function loadConfig() {
       const projects = projectsFromStorage;
 
+      // Merge a persisted config with current defaults so any sections added
+      // after the config was originally saved are present with safe empty values.
+      function mergeWithDefaults(persisted: PortfolioConfig): PortfolioConfig {
+        const defaults = createDefaultPortfolioConfig();
+        return {
+          ...defaults,
+          ...persisted,
+          services:     persisted.services     ?? defaults.services,
+          testimonials: persisted.testimonials ?? defaults.testimonials,
+          theme:        persisted.theme        ?? createDefaultTheme(),
+        };
+      }
+
       // 1. Try loading the saved config from the server first
       try {
         const res = await fetch("/api/portfolio");
         if (res.ok) {
           const data = await res.json() as { config: PortfolioConfig | null };
           if (data.config) {
-            const withTheme = { ...data.config, theme: data.config.theme ?? createDefaultTheme() };
+            const merged = mergeWithDefaults(data.config);
             // If fresh repos were selected from the dashboard, inject them
-            if (projects && projects.length > 0 && !withTheme.projects?.items?.length) {
-              setConfig({ ...withTheme, projects: { ...withTheme.projects, items: projects.map((p, i) => ({ ...p, order: i })) } });
+            if (projects && projects.length > 0 && !merged.projects?.items?.length) {
+              setConfig({ ...merged, projects: { ...merged.projects, items: projects.map((p, i) => ({ ...p, order: i })) } });
             } else {
-              setConfig(withTheme);
+              setConfig(merged);
             }
             setLoading(false);
             return;
@@ -536,11 +553,11 @@ export function CustomizeClient() {
       try {
         const saved = loadConfigFromStorage();
         if (saved) {
-          const withTheme = { ...saved, theme: saved.theme ?? createDefaultTheme() };
-          if (projects && projects.length > 0 && (!withTheme.projects?.items?.length || withTheme.projects.items.length === 0)) {
-            setConfig({ ...withTheme, projects: { ...withTheme.projects, items: projects.map((p, i) => ({ ...p, order: i })) } });
+          const merged = mergeWithDefaults(saved);
+          if (projects && projects.length > 0 && (!merged.projects?.items?.length || merged.projects.items.length === 0)) {
+            setConfig({ ...merged, projects: { ...merged.projects, items: projects.map((p, i) => ({ ...p, order: i })) } });
           } else {
-            setConfig(withTheme);
+            setConfig(merged);
           }
         } else {
           if (!projects || projects.length === 0) {
@@ -566,8 +583,9 @@ export function CustomizeClient() {
     loadConfig();
   }, [status, session?.user?.name, session?.user?.email, projectsFromStorage, router]);
 
-  // Ref for the server-save debounce timer
+  // Refs for debounce timer and in-flight PUT cancellation
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const saveAbortControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     if (!config || typeof window === "undefined") return;
@@ -580,17 +598,27 @@ export function CustomizeClient() {
       console.error("Failed to save config locally", e);
     }
 
-    // Debounced save to server (2 s after the last change)
+    // Debounced save to server (2 s after the last change).
+    // Abort any in-flight request so only the latest config wins.
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(async () => {
+      if (saveAbortControllerRef.current) saveAbortControllerRef.current.abort();
+      const controller = new AbortController();
+      saveAbortControllerRef.current = controller;
       try {
         await fetch("/api/portfolio", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ config }),
+          signal: controller.signal,
         });
-      } catch {
+      } catch (e) {
+        if (e instanceof Error && e.name === "AbortError") return;
         // Silent — localStorage already has the data as a backup
+      } finally {
+        if (saveAbortControllerRef.current === controller) {
+          saveAbortControllerRef.current = null;
+        }
       }
     }, 2000);
 

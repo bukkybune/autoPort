@@ -305,7 +305,7 @@ export function CleanMinimalTemplate({ config }: { config: PortfolioConfig }) {
             {(() => {
               const t = testimonials[testimonialIdx] ?? testimonials[0];
               return (
-                <div className="cm-testimonial-card" style={{ display: "grid", gridTemplateColumns: testimonials[testimonialIdx]?.avatarUrl ? "1fr 1fr" : "1fr" }}>
+                <div className="cm-testimonial-card" style={{ display: "grid", gridTemplateColumns: t.avatarUrl ? "1fr 1fr" : "1fr" }}>
                   {t.avatarUrl && (
                     <img src={t.avatarUrl} alt={t.name} style={{ width: "100%", height: 360, objectFit: "cover", display: "block" }} />
                   )}
