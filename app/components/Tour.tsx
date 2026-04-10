@@ -141,7 +141,7 @@ export function Tour({ steps, onDone }: Props) {
 
   return (
     <>
-      {/* Full-screen click-blocker */}
+      {/* Full-screen click-blocker — clicking outside skips the tour */}
       <div
         className="fixed inset-0 z-[9996]"
         style={{ cursor: "default" }}
