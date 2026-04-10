@@ -1,5 +1,10 @@
 import type { CustomizedProject } from "./customize";
 
+export interface HeroStat {
+  label: string;
+  value: string;
+}
+
 export interface HeroSection {
   enabled: boolean;
   name: string;
@@ -8,6 +13,34 @@ export interface HeroSection {
   photoUrl?: string;
   ctaText?: string;
   ctaLink?: string;
+  resumeUrl?: string;
+  availableForWork?: boolean;
+  stats?: HeroStat[];
+}
+
+export interface TestimonialItem {
+  quote: string;
+  name: string;
+  role: string;
+  company?: string;
+  avatarUrl?: string;
+}
+
+export interface TestimonialsSection {
+  enabled: boolean;
+  items: TestimonialItem[];
+}
+
+export interface ServiceItem {
+  title: string;
+  description: string;
+  imageUrl?: string;
+  link?: string;
+}
+
+export interface ServicesSection {
+  enabled: boolean;
+  items: ServiceItem[];
 }
 
 export interface AboutSection {
@@ -60,6 +93,10 @@ export interface ContactSection {
   github?: string;
   linkedin?: string;
   twitter?: string;
+  website?: string;
+  medium?: string;
+  devto?: string;
+  youtube?: string;
 }
 
 export type TemplateId =
@@ -89,14 +126,17 @@ export interface ThemeConfig {
   template: TemplateId;
   colorScheme: ColorSchemeId;
   customColors?: CustomColors;
+  darkMode?: boolean;
 }
 
 export interface PortfolioConfig {
   hero: HeroSection;
   about: AboutSection;
   skills: SkillsSection;
+  services: ServicesSection;
   projects: ProjectsSection;
   experience: ExperienceSection;
+  testimonials: TestimonialsSection;
   contact: ContactSection;
   theme: ThemeConfig;
 }
@@ -179,8 +219,10 @@ export function createDefaultPortfolioConfig(
     hero: createDefaultHero(overrides.name),
     about: createDefaultAbout(),
     skills: createDefaultSkills(),
+    services: { enabled: false, items: [] },
     projects: createDefaultProjects(overrides.projects ?? []),
     experience: createDefaultExperience(),
+    testimonials: { enabled: false, items: [] },
     contact: createDefaultContact(overrides.email),
     theme: createDefaultTheme(),
   };

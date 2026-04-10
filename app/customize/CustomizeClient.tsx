@@ -6,9 +6,8 @@ import {
   SELECTED_REPOS_KEY,
   CUSTOMIZED_PROJECTS_KEY,
   DASHBOARD_SELECTION_KEY,
-  CUSTOMIZE_STORAGE_KEY,
 } from "../types/customize";
-import type { PortfolioConfig, ExperienceEntry, SkillCategory } from "../types/portfolio";
+import type { PortfolioConfig, ExperienceEntry, SkillCategory, ServiceItem, TestimonialItem } from "../types/portfolio";
 import type { ColorSchemeId, TemplateId } from "../types/portfolio";
 import {
   PORTFOLIO_CONFIG_KEY,
@@ -46,7 +45,9 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import {
   ArrowLeft,
+  ChevronDown,
   GripVertical,
+  HelpCircle,
   Pencil,
   Trash2,
   Plus,
@@ -58,8 +59,41 @@ import {
   Mail,
   Layout,
   Palette,
+  Star,
+  MessageSquare,
+  BarChart2,
 } from "lucide-react";
 import { PreviewTemplate } from "../components/PreviewTemplate";
+import { Tour, type TourStep } from "../components/Tour";
+
+const CUSTOMIZE_TOUR_KEY = "autoport_tour_customize_v1";
+
+const CUSTOMIZE_TOUR_STEPS: TourStep[] = [
+  {
+    title: "Welcome to the Editor",
+    body: "This is where your portfolio comes to life. Every change you make updates the live preview instantly.",
+  },
+  {
+    target: "section-nav",
+    title: "Sections",
+    body: "Toggle sections on/off with the checkboxes. Click a section name to edit it in the panel to the right.",
+  },
+  {
+    target: "editor-panel",
+    title: "Edit Your Content",
+    body: "Fill in your name, bio, skills, experience, social links, and more. Changes appear in the preview as you type.",
+  },
+  {
+    target: "preview-panel",
+    title: "Live Preview",
+    body: "This is exactly how your portfolio will look. Drag the resize handles to give the preview more space.",
+  },
+  {
+    target: "export-btn",
+    title: "Export When Ready",
+    body: "Click 'Choose Template →' to pick your final template and download a standalone HTML file you can host anywhere.",
+  },
+];
 
 const TEMPLATE_OPTIONS: { id: TemplateId; label: string }[] = [
   { id: "minimal-pro", label: "Minimal Pro" },
@@ -101,36 +135,20 @@ function repoToCustomized(repo: GitHubRepo, order: number): CustomizedProject {
 function loadProjectsFromStorage(): CustomizedProject[] | null {
   if (typeof window === "undefined") return null;
   try {
-    let raw = sessionStorage.getItem(SELECTED_REPOS_KEY);
-    if (raw) {
-      const repos: unknown = JSON.parse(raw);
+    // Repos freshly selected from the dashboard take priority
+    const reposRaw = sessionStorage.getItem(SELECTED_REPOS_KEY);
+    if (reposRaw) {
+      const repos: unknown = JSON.parse(reposRaw);
       if (Array.isArray(repos) && repos.length > 0) {
         return (repos as GitHubRepo[]).map((r: GitHubRepo, i: number) => repoToCustomized(r, i));
       }
     }
-    raw = sessionStorage.getItem(CUSTOMIZED_PROJECTS_KEY);
-    if (raw) {
-      const parsed: unknown = JSON.parse(raw);
+    // Previously customized projects stored across navigation
+    const customRaw = sessionStorage.getItem(CUSTOMIZED_PROJECTS_KEY);
+    if (customRaw) {
+      const parsed: unknown = JSON.parse(customRaw);
       if (Array.isArray(parsed) && parsed.length > 0) {
         return (parsed as CustomizedProject[]).map((p, i) => ({ ...p, order: p.order ?? i }));
-      }
-    }
-    raw = sessionStorage.getItem("autoport_customized");
-    if (raw) {
-      const parsed: unknown = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        return (parsed as CustomizedProject[]).map((p, i) => ({ ...p, order: p.order ?? i }));
-      }
-    }
-    raw = sessionStorage.getItem(CUSTOMIZE_STORAGE_KEY);
-    if (raw) {
-      const parsed: unknown = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        const first = parsed[0];
-        if (first && typeof first === "object" && "html_url" in first) {
-          return (parsed as GitHubRepo[]).map((r, i) => repoToCustomized(r, i));
-        }
-        return (parsed as CustomizedProject[]).map((p, i) => ({ ...p, order: i }));
       }
     }
   } catch {
@@ -142,7 +160,10 @@ function loadProjectsFromStorage(): CustomizedProject[] | null {
 function loadConfigFromStorage(): PortfolioConfig | null {
   if (typeof window === "undefined") return null;
   try {
-    const raw = sessionStorage.getItem(PORTFOLIO_CONFIG_KEY);
+    // localStorage persists across tab closes; sessionStorage is a fallback for in-session state
+    const raw =
+      localStorage.getItem(PORTFOLIO_CONFIG_KEY) ??
+      sessionStorage.getItem(PORTFOLIO_CONFIG_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as PortfolioConfig;
     if (parsed && typeof parsed === "object" && parsed.hero) return parsed;
@@ -152,7 +173,7 @@ function loadConfigFromStorage(): PortfolioConfig | null {
   return null;
 }
 
-type SectionId = "hero" | "about" | "skills" | "projects" | "experience" | "contact" | "theme";
+type SectionId = "hero" | "about" | "skills" | "services" | "projects" | "testimonials" | "experience" | "contact" | "theme";
 
 const COLOR_SCHEMES: { id: ColorSchemeId; label: string; swatch: [string, string, string] }[] = [
   { id: "navy", label: "Navy Blue", swatch: ["#0a192f", "#ccd6f6", "#64ffda"] },
@@ -170,7 +191,9 @@ const SECTIONS: { id: SectionId; label: string; icon: React.ReactNode; noCheckbo
   { id: "hero", label: "Hero", icon: <User className="h-4 w-4" /> },
   { id: "about", label: "About Me", icon: <FileText className="h-4 w-4" /> },
   { id: "skills", label: "Skills", icon: <Code className="h-4 w-4" /> },
+  { id: "services", label: "Services", icon: <Star className="h-4 w-4" /> },
   { id: "projects", label: "Projects", icon: <Layout className="h-4 w-4" /> },
+  { id: "testimonials", label: "Testimonials", icon: <MessageSquare className="h-4 w-4" /> },
   { id: "experience", label: "Experience", icon: <Briefcase className="h-4 w-4" /> },
   { id: "contact", label: "Contact", icon: <Mail className="h-4 w-4" /> },
   { id: "theme", label: "Theme & Colors", icon: <Palette className="h-4 w-4" />, noCheckbox: true },
@@ -276,8 +299,9 @@ function ProjectEditModal({
         </div>
         <form onSubmit={handleSubmit} className="p-4 space-y-4">
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1">Title</label>
+            <label htmlFor="proj-title" className="block text-sm font-medium text-slate-300 mb-1">Title</label>
             <input
+              id="proj-title"
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
@@ -286,8 +310,9 @@ function ProjectEditModal({
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1">Description</label>
+            <label htmlFor="proj-description" className="block text-sm font-medium text-slate-300 mb-1">Description</label>
             <textarea
+              id="proj-description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               maxLength={500}
@@ -296,16 +321,19 @@ function ProjectEditModal({
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1">Tags (Enter to add)</label>
+            <label htmlFor="proj-tags" className="block text-sm font-medium text-slate-300 mb-1">Tags (Enter to add)</label>
             <input
+              id="proj-tags"
               type="text"
               value={tagInput}
               onChange={(e) => setTagInput(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault();
-                  const t = tagInput.trim();
-                  if (t && !tags.includes(t)) setTags((prev) => [...prev, t]);
+                  const t = tagInput.trim().slice(0, 50); // max 50 chars per tag
+                  if (t && !tags.includes(t) && tags.length < 10) { // max 10 tags
+                    setTags((prev) => [...prev, t]);
+                  }
                   setTagInput("");
                 }
               }}
@@ -326,8 +354,9 @@ function ProjectEditModal({
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1">Image URL (optional)</label>
+            <label htmlFor="proj-image-url" className="block text-sm font-medium text-slate-300 mb-1">Image URL (optional)</label>
             <input
+              id="proj-image-url"
               type="url"
               value={imageUrl}
               onChange={(e) => setImageUrl(e.target.value)}
@@ -335,8 +364,9 @@ function ProjectEditModal({
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1">Demo URL (optional)</label>
+            <label htmlFor="proj-demo-url" className="block text-sm font-medium text-slate-300 mb-1">Demo URL (optional)</label>
             <input
+              id="proj-demo-url"
               type="url"
               value={demoUrl}
               onChange={(e) => setDemoUrl(e.target.value)}
@@ -366,42 +396,99 @@ function ProjectEditModal({
   );
 }
 
+function AccordionSection({
+  id, label, icon, enabled, noCheckbox, isOpen, onToggle, onToggleEnabled, children,
+}: {
+  id: SectionId;
+  label: string;
+  icon: React.ReactNode;
+  enabled: boolean;
+  noCheckbox?: boolean;
+  isOpen: boolean;
+  onToggle: () => void;
+  onToggleEnabled: (enabled: boolean) => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="border-b border-slate-800/70 last:border-b-0">
+      <button
+        type="button"
+        className="flex w-full items-center gap-2.5 px-4 py-3 cursor-pointer hover:bg-slate-800/40 transition-colors select-none text-left"
+        onClick={onToggle}
+        aria-expanded={isOpen}
+        aria-controls={`section-panel-${label.replace(/\s+/g, "-").toLowerCase()}`}
+      >
+        {!noCheckbox ? (
+          <input
+            type="checkbox"
+            checked={enabled}
+            onChange={(e) => { e.stopPropagation(); onToggleEnabled(e.target.checked); }}
+            onClick={(e) => e.stopPropagation()}
+            className="rounded border-slate-600 bg-slate-800 accent-amber-500 shrink-0"
+          />
+        ) : (
+          <span className="w-4 shrink-0" />
+        )}
+        <span className={`shrink-0 transition-colors ${isOpen ? "text-amber-400" : "text-slate-500"}`}>{icon}</span>
+        <span className={`flex-1 text-sm font-medium transition-colors ${isOpen ? "text-slate-100" : "text-slate-400"}`}>{label}</span>
+        <ChevronDown className={`h-3.5 w-3.5 text-slate-600 transition-transform duration-200 ${isOpen ? "rotate-180 text-amber-500" : ""}`} />
+      </button>
+      <div
+        id={`section-panel-${label.replace(/\s+/g, "-").toLowerCase()}`}
+        className="grid transition-[grid-template-rows] duration-200 ease-in-out"
+        style={{ gridTemplateRows: isOpen ? "1fr" : "0fr" }}
+      >
+        <div className="overflow-hidden">
+          <div className="px-4 pt-1 pb-5">
+            {children}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function CustomizeClient() {
   const { status, data: session } = useSession();
   const router = useRouter();
   const [config, setConfig] = useState<PortfolioConfig | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<"empty" | "corrupt" | null>(null);
-  const [activeSection, setActiveSection] = useState<SectionId>("hero");
+  const [activeSection, setActiveSection] = useState<SectionId | null>("hero");
   const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [showTour, setShowTour] = useState(false);
 
-  // Resizable panels
-  const [sidebarW, setSidebarW] = useState(208);
-  const [editorW, setEditorW] = useState(360);
-  const draggingPanel = useRef<{ panel: "sidebar" | "editor"; startX: number; startW: number } | null>(null);
+  useEffect(() => {
+    if (!localStorage.getItem(CUSTOMIZE_TOUR_KEY)) setShowTour(true);
+  }, []);
 
-  const startPanelResize = useCallback((e: React.MouseEvent, panel: "sidebar" | "editor") => {
+  function completeTour() {
+    localStorage.setItem(CUSTOMIZE_TOUR_KEY, "1");
+    setShowTour(false);
+  }
+
+  // Resizable panel
+  const [editorW, setEditorW] = useState(400);
+  // Keep a ref in sync so the drag closure doesn't need editorW in its deps array
+  const editorWRef = useRef(editorW);
+  useEffect(() => { editorWRef.current = editorW; }, [editorW]);
+
+  const startPanelResize = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
-    const startW = panel === "sidebar" ? sidebarW : editorW;
-    draggingPanel.current = { panel, startX: e.clientX, startW };
+    const startX = e.clientX;
+    const startW = editorWRef.current;
     const onMove = (ev: MouseEvent) => {
-      if (!draggingPanel.current) return;
-      const delta = ev.clientX - draggingPanel.current.startX;
-      if (draggingPanel.current.panel === "sidebar") {
-        setSidebarW(Math.max(160, Math.min(320, draggingPanel.current.startW + delta)));
-      } else {
-        setEditorW(Math.max(280, Math.min(520, draggingPanel.current.startW + delta)));
-      }
+      const delta = ev.clientX - startX;
+      setEditorW(Math.max(320, Math.min(600, startW + delta)));
     };
     const onUp = () => {
-      draggingPanel.current = null;
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
     };
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
-  }, [sidebarW, editorW]);
+  }, []); // no state deps — reads editorW from ref at drag-start time
 
   // Dynamic preview zoom
   const previewRef = useRef<HTMLDivElement>(null);
@@ -424,48 +511,120 @@ export function CustomizeClient() {
       return;
     }
     if (status !== "authenticated") return;
-    try {
-      const saved = loadConfigFromStorage();
+
+    async function loadConfig() {
       const projects = projectsFromStorage;
-      if (saved) {
-          const withTheme = { ...saved, theme: saved.theme ?? createDefaultTheme() };
-          if (projects && projects.length > 0 && (!withTheme.projects?.items?.length || withTheme.projects.items.length === 0)) {
-            setConfig({
-              ...withTheme,
-              projects: { ...withTheme.projects, items: projects.map((p, i) => ({ ...p, order: i })) },
-            });
+
+      // Merge a persisted config with current defaults so any sections added
+      // after the config was originally saved are present with safe empty values.
+      function mergeWithDefaults(persisted: PortfolioConfig): PortfolioConfig {
+        const defaults = createDefaultPortfolioConfig();
+        return {
+          ...defaults,
+          ...persisted,
+          services:     persisted.services     ?? defaults.services,
+          testimonials: persisted.testimonials ?? defaults.testimonials,
+          theme:        persisted.theme        ?? createDefaultTheme(),
+        };
+      }
+
+      // 1. Try loading the saved config from the server first
+      try {
+        const res = await fetch("/api/portfolio");
+        if (res.ok) {
+          const data = await res.json() as { config: PortfolioConfig | null };
+          if (data.config) {
+            const merged = mergeWithDefaults(data.config);
+            // If fresh repos were selected from the dashboard, inject them
+            if (projects && projects.length > 0 && !merged.projects?.items?.length) {
+              setConfig({ ...merged, projects: { ...merged.projects, items: projects.map((p, i) => ({ ...p, order: i })) } });
+            } else {
+              setConfig(merged);
+            }
+            setLoading(false);
+            return;
+          }
+        }
+      } catch {
+        // Server unavailable — fall through to local storage
+      }
+
+      // 2. Fall back to localStorage / sessionStorage
+      try {
+        const saved = loadConfigFromStorage();
+        if (saved) {
+          const merged = mergeWithDefaults(saved);
+          if (projects && projects.length > 0 && (!merged.projects?.items?.length || merged.projects.items.length === 0)) {
+            setConfig({ ...merged, projects: { ...merged.projects, items: projects.map((p, i) => ({ ...p, order: i })) } });
           } else {
-            setConfig(withTheme);
+            setConfig(merged);
           }
         } else {
-        if (!projects || projects.length === 0) {
-          setLoadError("empty");
-          setLoading(false);
-          return;
+          if (!projects || projects.length === 0) {
+            setLoadError("empty");
+            setLoading(false);
+            return;
+          }
+          setConfig(
+            createDefaultPortfolioConfig({
+              name: session?.user?.name ?? undefined,
+              email: session?.user?.email ?? undefined,
+              projects,
+            })
+          );
         }
-        setConfig(
-          createDefaultPortfolioConfig({
-            name: session?.user?.name ?? undefined,
-            email: session?.user?.email ?? undefined,
-            projects,
-          })
-        );
+      } catch {
+        setLoadError("corrupt");
+      } finally {
+        setLoading(false);
       }
-    } catch {
-      setLoadError("corrupt");
-    } finally {
-      setLoading(false);
     }
+
+    loadConfig();
   }, [status, session?.user?.name, session?.user?.email, projectsFromStorage, router]);
+
+  // Refs for debounce timer and in-flight PUT cancellation
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const saveAbortControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     if (!config || typeof window === "undefined") return;
+
+    // Write to localStorage immediately so data survives tab close
     try {
-      sessionStorage.setItem(PORTFOLIO_CONFIG_KEY, JSON.stringify(config));
+      localStorage.setItem(PORTFOLIO_CONFIG_KEY, JSON.stringify(config));
       sessionStorage.setItem(CUSTOMIZED_PROJECTS_KEY, JSON.stringify(config.projects.items));
     } catch (e) {
-      console.error("Failed to save config", e);
+      console.error("Failed to save config locally", e);
     }
+
+    // Debounced save to server (2 s after the last change).
+    // Abort any in-flight request so only the latest config wins.
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(async () => {
+      if (saveAbortControllerRef.current) saveAbortControllerRef.current.abort();
+      const controller = new AbortController();
+      saveAbortControllerRef.current = controller;
+      try {
+        await fetch("/api/portfolio", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ config }),
+          signal: controller.signal,
+        });
+      } catch (e) {
+        if (e instanceof Error && e.name === "AbortError") return;
+        // Silent — localStorage already has the data as a backup
+      } finally {
+        if (saveAbortControllerRef.current === controller) {
+          saveAbortControllerRef.current = null;
+        }
+      }
+    }, 2000);
+
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    };
   }, [config]);
 
   const updateConfig = useCallback(<K extends keyof PortfolioConfig>(key: K, value: PortfolioConfig[K]) => {
@@ -577,10 +736,11 @@ export function CustomizeClient() {
 
   return (
     <main className="flex bg-slate-950 text-slate-100" style={{ height: 'calc(100vh - 4rem)', overflow: 'hidden' }}>
+      {showTour && <Tour steps={CUSTOMIZE_TOUR_STEPS} onDone={completeTour} />}
 
-      {/* ── Left Sidebar: Section Nav ── */}
-      <aside className="shrink-0 border-r border-slate-800/80 bg-slate-900/50 flex flex-col overflow-y-auto pb-12" style={{ width: sidebarW }}>
-        <div className="p-4 border-b border-slate-800/60">
+      {/* ── Accordion Editor Panel ── */}
+      <div data-tour="editor-panel" className="shrink-0 border-r border-slate-800/80 flex flex-col overflow-hidden bg-slate-900/30" style={{ width: editorW }}>
+        <div className="px-4 py-3.5 border-b border-slate-800/60 shrink-0 flex items-center justify-between">
           <Link
             href="/dashboard"
             onClick={syncSelectionToDashboard}
@@ -588,70 +748,39 @@ export function CustomizeClient() {
           >
             <ArrowLeft className="h-4 w-4" /> Back
           </Link>
+          <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest">Customize</span>
         </div>
-        <div className="p-4 flex-1">
-          <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest mb-3">Sections</p>
-          <nav className="space-y-0.5">
-            {SECTIONS.map(({ id, label, icon, noCheckbox }) => {
-              const section = config[id as keyof PortfolioConfig];
-              const enabled = section && typeof section === "object" && "enabled" in section ? (section as { enabled: boolean }).enabled : true;
-              return (
-                <div key={id} className="flex items-center gap-2">
-                  {!noCheckbox && (
-                    <input
-                      type="checkbox"
-                      checked={enabled}
-                      onChange={(e) => {
-                        const key = id as keyof PortfolioConfig;
-                        const sec = config[key];
-                        if (sec && typeof sec === "object" && "enabled" in sec) {
-                          updateConfig(key, { ...sec, enabled: e.target.checked } as PortfolioConfig[keyof PortfolioConfig]);
-                        }
-                      }}
-                      className="rounded border-slate-600 bg-slate-800 accent-amber-500"
-                    />
-                  )}
-                  {noCheckbox && <span className="w-4" aria-hidden />}
-                  <button
-                    type="button"
-                    onClick={() => setActiveSection(id)}
-                    className={`flex flex-1 items-center gap-2 rounded-lg px-3 py-2.5 text-sm transition-colors ${
-                      activeSection === id
-                        ? "bg-amber-500/10 text-amber-300 font-medium"
-                        : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
-                    }`}
-                  >
-                    {icon}
-                    {label}
-                  </button>
-                </div>
-              );
-            })}
-          </nav>
-        </div>
-      </aside>
+        <div className="flex-1 overflow-y-auto" data-tour="section-nav">
+          {SECTIONS.map(({ id, label, icon, noCheckbox }) => {
+            const section = config[id as keyof PortfolioConfig];
+            const enabled = section && typeof section === "object" && "enabled" in section
+              ? (section as { enabled: boolean }).enabled
+              : true;
+            return (
+              <AccordionSection
+                key={id}
+                id={id}
+                label={label}
+                icon={icon}
+                enabled={enabled}
+                noCheckbox={noCheckbox}
+                isOpen={activeSection === id}
+                onToggle={() => setActiveSection(activeSection === id ? null : id)}
+                onToggleEnabled={(checked) => {
+                  const key = id as keyof PortfolioConfig;
+                  const sec = config[key];
+                  if (sec && typeof sec === "object" && "enabled" in sec) {
+                    updateConfig(key, { ...sec, enabled: checked } as PortfolioConfig[keyof PortfolioConfig]);
+                  }
+                }}
+              >
 
-      {/* Resize handle: sidebar ↔ editor */}
-      <div
-        className="w-1 shrink-0 cursor-col-resize bg-slate-800/60 hover:bg-amber-500/50 active:bg-amber-500/70 transition-colors"
-        onMouseDown={(e) => startPanelResize(e, "sidebar")}
-        title="Drag to resize"
-      />
-
-      {/* ── Editor Panel ── */}
-      <div className="shrink-0 border-r border-slate-800/80 flex flex-col overflow-hidden" style={{ width: editorW }}>
-        <div className="px-5 py-4 border-b border-slate-800/60 shrink-0">
-          <h2 className="text-sm font-semibold text-slate-100">
-            {SECTIONS.find((s) => s.id === activeSection)?.label}
-          </h2>
-        </div>
-        <div className="flex-1 overflow-y-auto p-5 pb-20">
-
-          {activeSection === "hero" && (
+          {id === "hero" && (
             <div className="space-y-5">
               <div>
-                <label className="block text-xs font-medium text-slate-400 uppercase tracking-wide mb-1.5">Name *</label>
+                <label htmlFor="hero-name" className="block text-xs font-medium text-slate-400 uppercase tracking-wide mb-1.5">Name *</label>
                 <input
+                  id="hero-name"
                   type="text"
                   value={config.hero.name}
                   onChange={(e) => updateConfig("hero", { ...config.hero, name: e.target.value })}
@@ -661,8 +790,9 @@ export function CustomizeClient() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-400 uppercase tracking-wide mb-1.5">Title / Role</label>
+                <label htmlFor="hero-title" className="block text-xs font-medium text-slate-400 uppercase tracking-wide mb-1.5">Title / Role</label>
                 <input
+                  id="hero-title"
                   type="text"
                   value={config.hero.title}
                   onChange={(e) => updateConfig("hero", { ...config.hero, title: e.target.value })}
@@ -671,8 +801,9 @@ export function CustomizeClient() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-400 uppercase tracking-wide mb-1.5">Bio <span className="normal-case text-slate-500">(max 200)</span></label>
+                <label htmlFor="hero-bio" className="block text-xs font-medium text-slate-400 uppercase tracking-wide mb-1.5">Bio <span className="normal-case text-slate-500">(max 200)</span></label>
                 <textarea
+                  id="hero-bio"
                   value={config.hero.bio}
                   onChange={(e) => updateConfig("hero", { ...config.hero, bio: e.target.value.slice(0, 200) })}
                   maxLength={200}
@@ -682,8 +813,9 @@ export function CustomizeClient() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-400 uppercase tracking-wide mb-1.5">Profile photo URL</label>
+                <label htmlFor="hero-photo" className="block text-xs font-medium text-slate-400 uppercase tracking-wide mb-1.5">Profile photo URL</label>
                 <input
+                  id="hero-photo"
                   type="url"
                   value={config.hero.photoUrl ?? ""}
                   onChange={(e) => updateConfig("hero", { ...config.hero, photoUrl: e.target.value.trim() || undefined })}
@@ -693,8 +825,9 @@ export function CustomizeClient() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-slate-400 uppercase tracking-wide mb-1.5">CTA Text</label>
+                  <label htmlFor="hero-cta-text" className="block text-xs font-medium text-slate-400 uppercase tracking-wide mb-1.5">CTA Text</label>
                   <input
+                    id="hero-cta-text"
                     type="text"
                     value={config.hero.ctaText ?? ""}
                     onChange={(e) => updateConfig("hero", { ...config.hero, ctaText: e.target.value })}
@@ -703,8 +836,9 @@ export function CustomizeClient() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-slate-400 uppercase tracking-wide mb-1.5">CTA Link</label>
+                  <label htmlFor="hero-cta-link" className="block text-xs font-medium text-slate-400 uppercase tracking-wide mb-1.5">CTA Link</label>
                   <input
+                    id="hero-cta-link"
                     type="url"
                     value={config.hero.ctaLink ?? ""}
                     onChange={(e) => updateConfig("hero", { ...config.hero, ctaLink: e.target.value })}
@@ -713,14 +847,94 @@ export function CustomizeClient() {
                   />
                 </div>
               </div>
+              <div>
+                <label htmlFor="hero-resume-url" className="block text-xs font-medium text-slate-400 uppercase tracking-wide mb-1.5">Resume URL <span className="normal-case text-slate-500">(Google Drive, Dropbox, etc.)</span></label>
+                <input
+                  id="hero-resume-url"
+                  type="url"
+                  value={config.hero.resumeUrl ?? ""}
+                  onChange={(e) => updateConfig("hero", { ...config.hero, resumeUrl: e.target.value.trim() || undefined })}
+                  placeholder="https://drive.google.com/..."
+                  className="w-full rounded-lg border border-slate-700 bg-slate-800/80 px-3 py-2.5 text-slate-100 text-sm focus:border-amber-500/60 focus:outline-none focus:ring-1 focus:ring-amber-500/30"
+                />
+              </div>
+              {/* Available for work */}
+              <div className="flex items-center justify-between rounded-lg border border-slate-700 bg-slate-800/50 px-4 py-3">
+                <div>
+                  <p className="text-sm font-medium text-slate-200">Available for Work</p>
+                  <p className="text-xs text-slate-500 mt-0.5">Show a green "Available for Work" badge</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => updateConfig("hero", { ...config.hero, availableForWork: !config.hero.availableForWork })}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${config.hero.availableForWork ? "bg-amber-500" : "bg-slate-600"}`}
+                >
+                  <span className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${config.hero.availableForWork ? "translate-x-6" : "translate-x-1"}`} />
+                </button>
+              </div>
+              {/* Stats */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-xs font-medium text-slate-400 uppercase tracking-wide">Stats <span className="normal-case text-slate-500">(e.g. 3+ Years of experience)</span></label>
+                  <button
+                    type="button"
+                    onClick={() => updateConfig("hero", { ...config.hero, stats: [...(config.hero.stats ?? []), { label: "", value: "" }] })}
+                    className="flex items-center gap-1 rounded px-2 py-1 text-xs font-medium text-amber-400 hover:bg-amber-400/10 transition-colors"
+                  >
+                    <Plus className="h-3 w-3" /> Add Stat
+                  </button>
+                </div>
+                <div className="space-y-2">
+                  {(config.hero.stats ?? []).map((stat, i) => (
+                    <div key={i} className="flex gap-2 items-center">
+                      <input
+                        type="text"
+                        value={stat.value}
+                        onChange={(e) => {
+                          const stats = [...(config.hero.stats ?? [])];
+                          stats[i] = { ...stats[i], value: e.target.value };
+                          updateConfig("hero", { ...config.hero, stats });
+                        }}
+                        placeholder="3+"
+                        className="w-20 rounded-lg border border-slate-700 bg-slate-800/80 px-3 py-2 text-slate-100 text-sm focus:border-amber-500/60 focus:outline-none"
+                      />
+                      <input
+                        type="text"
+                        value={stat.label}
+                        onChange={(e) => {
+                          const stats = [...(config.hero.stats ?? [])];
+                          stats[i] = { ...stats[i], label: e.target.value };
+                          updateConfig("hero", { ...config.hero, stats });
+                        }}
+                        placeholder="Years of experience"
+                        className="flex-1 rounded-lg border border-slate-700 bg-slate-800/80 px-3 py-2 text-slate-100 text-sm focus:border-amber-500/60 focus:outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const stats = (config.hero.stats ?? []).filter((_, j) => j !== i);
+                          updateConfig("hero", { ...config.hero, stats });
+                        }}
+                        className="text-slate-500 hover:text-red-400 transition-colors"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ))}
+                  {(!config.hero.stats || config.hero.stats.length === 0) && (
+                    <p className="text-xs text-slate-600 italic">No stats yet — click "Add Stat" above</p>
+                  )}
+                </div>
+              </div>
             </div>
           )}
 
-          {activeSection === "about" && (
+          {id === "about" && (
             <div className="space-y-5">
               <div>
-                <label className="block text-xs font-medium text-slate-400 uppercase tracking-wide mb-1.5">About you <span className="normal-case text-slate-500">(max 500)</span></label>
+                <label htmlFor="about-description" className="block text-xs font-medium text-slate-400 uppercase tracking-wide mb-1.5">About you <span className="normal-case text-slate-500">(max 500)</span></label>
                 <textarea
+                  id="about-description"
                   value={config.about.description}
                   onChange={(e) => updateConfig("about", { ...config.about, description: e.target.value.slice(0, 500) })}
                   maxLength={500}
@@ -730,8 +944,9 @@ export function CustomizeClient() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-400 uppercase tracking-wide mb-1.5">Fun facts / hobbies <span className="normal-case text-slate-500">(max 200)</span></label>
+                <label htmlFor="about-funfacts" className="block text-xs font-medium text-slate-400 uppercase tracking-wide mb-1.5">Fun facts / hobbies <span className="normal-case text-slate-500">(max 200)</span></label>
                 <textarea
+                  id="about-funfacts"
                   value={config.about.funFacts ?? ""}
                   onChange={(e) => updateConfig("about", { ...config.about, funFacts: e.target.value.slice(0, 200) })}
                   maxLength={200}
@@ -743,7 +958,7 @@ export function CustomizeClient() {
             </div>
           )}
 
-          {activeSection === "skills" && (
+          {id === "skills" && (
             <div className="space-y-5">
               {config.skills.categories.map((cat, catIndex) => (
                 <div key={catIndex} className="rounded-xl border border-slate-700/80 bg-slate-900/50 p-4">
@@ -837,7 +1052,7 @@ export function CustomizeClient() {
             </div>
           )}
 
-          {activeSection === "projects" && (
+          {id === "projects" && (
             <div className="space-y-4">
               <p className="text-xs text-slate-500 leading-relaxed">
                 {config.projects.items.length} project{config.projects.items.length !== 1 ? 's' : ''}. Drag to reorder; click edit to change details.
@@ -865,7 +1080,60 @@ export function CustomizeClient() {
             </div>
           )}
 
-          {activeSection === "experience" && (
+          {id === "services" && (
+            <div className="space-y-4">
+              <p className="text-xs text-slate-500">Add the services you offer. Each card can include a title, description, optional image, and a link.</p>
+              {(config.services?.items ?? []).map((svc, i) => (
+                <div key={i} className="rounded-xl border border-slate-700/80 bg-slate-900/50 p-4 space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Service {i + 1}</span>
+                    <button type="button" onClick={() => updateConfig("services", { ...config.services, items: config.services.items.filter((_, j) => j !== i) })} className="text-slate-500 hover:text-red-400 transition-colors"><X className="h-4 w-4" /></button>
+                  </div>
+                  <input type="text" value={svc.title} onChange={(e) => { const items = [...config.services.items]; items[i] = { ...items[i], title: e.target.value }; updateConfig("services", { ...config.services, items }); }} placeholder="Frontend Development" className="w-full rounded-lg border border-slate-700 bg-slate-800/80 px-3 py-2 text-slate-100 text-sm focus:border-amber-500/60 focus:outline-none" />
+                  <textarea value={svc.description} onChange={(e) => { const items = [...config.services.items]; items[i] = { ...items[i], description: e.target.value }; updateConfig("services", { ...config.services, items }); }} rows={3} placeholder="Describe what you offer..." className="w-full rounded-lg border border-slate-700 bg-slate-800/80 px-3 py-2 text-slate-100 text-sm resize-none focus:border-amber-500/60 focus:outline-none" />
+                  <input type="url" value={svc.imageUrl ?? ""} onChange={(e) => { const items = [...config.services.items]; items[i] = { ...items[i], imageUrl: e.target.value.trim() || undefined }; updateConfig("services", { ...config.services, items }); }} placeholder="Image URL (optional)" className="w-full rounded-lg border border-slate-700 bg-slate-800/80 px-3 py-2 text-slate-100 text-sm focus:border-amber-500/60 focus:outline-none" />
+                  <input type="url" value={svc.link ?? ""} onChange={(e) => { const items = [...config.services.items]; items[i] = { ...items[i], link: e.target.value.trim() || undefined }; updateConfig("services", { ...config.services, items }); }} placeholder="Link URL (optional)" className="w-full rounded-lg border border-slate-700 bg-slate-800/80 px-3 py-2 text-slate-100 text-sm focus:border-amber-500/60 focus:outline-none" />
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={() => updateConfig("services", { ...config.services, items: [...(config.services?.items ?? []), { title: "", description: "" }] })}
+                className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-slate-600 py-2.5 text-sm font-medium text-slate-400 hover:border-amber-500/50 hover:text-amber-400 transition-colors"
+              >
+                <Plus className="h-4 w-4" /> Add Service
+              </button>
+            </div>
+          )}
+
+          {id === "testimonials" && (
+            <div className="space-y-4">
+              <p className="text-xs text-slate-500">Add testimonials from clients or colleagues. They'll appear in a carousel with navigation arrows.</p>
+              {(config.testimonials?.items ?? []).map((t, i) => (
+                <div key={i} className="rounded-xl border border-slate-700/80 bg-slate-900/50 p-4 space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Testimonial {i + 1}</span>
+                    <button type="button" onClick={() => updateConfig("testimonials", { ...config.testimonials, items: config.testimonials.items.filter((_, j) => j !== i) })} className="text-slate-500 hover:text-red-400 transition-colors"><X className="h-4 w-4" /></button>
+                  </div>
+                  <textarea value={t.quote} onChange={(e) => { const items = [...config.testimonials.items]; items[i] = { ...items[i], quote: e.target.value }; updateConfig("testimonials", { ...config.testimonials, items }); }} rows={3} placeholder="What they said about you..." className="w-full rounded-lg border border-slate-700 bg-slate-800/80 px-3 py-2 text-slate-100 text-sm resize-none focus:border-amber-500/60 focus:outline-none" />
+                  <div className="grid grid-cols-2 gap-2">
+                    <input type="text" value={t.name} onChange={(e) => { const items = [...config.testimonials.items]; items[i] = { ...items[i], name: e.target.value }; updateConfig("testimonials", { ...config.testimonials, items }); }} placeholder="Name" className="rounded-lg border border-slate-700 bg-slate-800/80 px-3 py-2 text-slate-100 text-sm focus:border-amber-500/60 focus:outline-none" />
+                    <input type="text" value={t.role} onChange={(e) => { const items = [...config.testimonials.items]; items[i] = { ...items[i], role: e.target.value }; updateConfig("testimonials", { ...config.testimonials, items }); }} placeholder="Role" className="rounded-lg border border-slate-700 bg-slate-800/80 px-3 py-2 text-slate-100 text-sm focus:border-amber-500/60 focus:outline-none" />
+                  </div>
+                  <input type="text" value={t.company ?? ""} onChange={(e) => { const items = [...config.testimonials.items]; items[i] = { ...items[i], company: e.target.value || undefined }; updateConfig("testimonials", { ...config.testimonials, items }); }} placeholder="Company (optional)" className="w-full rounded-lg border border-slate-700 bg-slate-800/80 px-3 py-2 text-slate-100 text-sm focus:border-amber-500/60 focus:outline-none" />
+                  <input type="url" value={t.avatarUrl ?? ""} onChange={(e) => { const items = [...config.testimonials.items]; items[i] = { ...items[i], avatarUrl: e.target.value.trim() || undefined }; updateConfig("testimonials", { ...config.testimonials, items }); }} placeholder="Photo URL (optional)" className="w-full rounded-lg border border-slate-700 bg-slate-800/80 px-3 py-2 text-slate-100 text-sm focus:border-amber-500/60 focus:outline-none" />
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={() => updateConfig("testimonials", { ...config.testimonials, items: [...(config.testimonials?.items ?? []), { quote: "", name: "", role: "" }] })}
+                className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-slate-600 py-2.5 text-sm font-medium text-slate-400 hover:border-amber-500/50 hover:text-amber-400 transition-colors"
+              >
+                <Plus className="h-4 w-4" /> Add Testimonial
+              </button>
+            </div>
+          )}
+
+          {id === "experience" && (
             <div className="space-y-5">
               {config.experience.items.map((entry, i) => (
                 <div key={i} className="rounded-xl border border-slate-700/80 bg-slate-900/50 p-4 space-y-3">
@@ -945,12 +1213,13 @@ export function CustomizeClient() {
             </div>
           )}
 
-          {activeSection === "contact" && (
+          {id === "contact" && (
             <div className="space-y-4">
               <p className="text-xs text-slate-500 leading-relaxed">Customize the wording for your situation — job seeker, freelancer, student, etc.</p>
               <div>
-                <label className="block text-xs font-medium text-slate-400 uppercase tracking-wide mb-1.5">Contact headline</label>
+                <label htmlFor="contact-headline" className="block text-xs font-medium text-slate-400 uppercase tracking-wide mb-1.5">Contact headline</label>
                 <input
+                  id="contact-headline"
                   type="text"
                   value={config.contact.headline ?? ""}
                   onChange={(e) => updateConfig("contact", { ...config.contact, headline: e.target.value.trim() || undefined })}
@@ -959,8 +1228,9 @@ export function CustomizeClient() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-400 uppercase tracking-wide mb-1.5">Subtext</label>
+                <label htmlFor="contact-subtext" className="block text-xs font-medium text-slate-400 uppercase tracking-wide mb-1.5">Subtext</label>
                 <input
+                  id="contact-subtext"
                   type="text"
                   value={config.contact.subtext ?? ""}
                   onChange={(e) => updateConfig("contact", { ...config.contact, subtext: e.target.value.trim() || undefined })}
@@ -969,8 +1239,9 @@ export function CustomizeClient() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-400 uppercase tracking-wide mb-1.5">Button label</label>
+                <label htmlFor="contact-cta-label" className="block text-xs font-medium text-slate-400 uppercase tracking-wide mb-1.5">Button label</label>
                 <input
+                  id="contact-cta-label"
                   type="text"
                   value={config.contact.ctaLabel ?? ""}
                   onChange={(e) => updateConfig("contact", { ...config.contact, ctaLabel: e.target.value.trim() || undefined })}
@@ -979,8 +1250,9 @@ export function CustomizeClient() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-400 uppercase tracking-wide mb-1.5">Email *</label>
+                <label htmlFor="contact-email" className="block text-xs font-medium text-slate-400 uppercase tracking-wide mb-1.5">Email *</label>
                 <input
+                  id="contact-email"
                   type="email"
                   value={config.contact.email}
                   onChange={(e) => updateConfig("contact", { ...config.contact, email: e.target.value })}
@@ -990,13 +1262,18 @@ export function CustomizeClient() {
               </div>
               <div className="grid grid-cols-1 gap-3 pt-1">
                 {[
-                  { key: 'github' as const, label: 'GitHub URL', placeholder: 'https://github.com/...' },
-                  { key: 'linkedin' as const, label: 'LinkedIn URL', placeholder: 'https://linkedin.com/in/...' },
-                  { key: 'twitter' as const, label: 'Twitter / X URL', placeholder: 'https://twitter.com/...' },
+                  { key: 'github'   as const, label: 'GitHub URL',      placeholder: 'https://github.com/...' },
+                  { key: 'linkedin' as const, label: 'LinkedIn URL',     placeholder: 'https://linkedin.com/in/...' },
+                  { key: 'twitter'  as const, label: 'Twitter / X URL',  placeholder: 'https://twitter.com/...' },
+                  { key: 'website'  as const, label: 'Website URL',      placeholder: 'https://yoursite.com' },
+                  { key: 'medium'   as const, label: 'Medium URL',       placeholder: 'https://medium.com/@...' },
+                  { key: 'devto'    as const, label: 'Dev.to URL',       placeholder: 'https://dev.to/...' },
+                  { key: 'youtube'  as const, label: 'YouTube URL',      placeholder: 'https://youtube.com/@...' },
                 ].map(({ key, label, placeholder }) => (
                   <div key={key}>
-                    <label className="block text-xs font-medium text-slate-400 uppercase tracking-wide mb-1.5">{label}</label>
+                    <label htmlFor={`contact-${key}`} className="block text-xs font-medium text-slate-400 uppercase tracking-wide mb-1.5">{label}</label>
                     <input
+                      id={`contact-${key}`}
                       type="url"
                       value={config.contact[key] ?? ""}
                       onChange={(e) => updateConfig("contact", { ...config.contact, [key]: e.target.value.trim() || undefined })}
@@ -1009,7 +1286,7 @@ export function CustomizeClient() {
             </div>
           )}
 
-          {activeSection === "theme" && (
+          {id === "theme" && (
             <div className="space-y-6">
               <div>
                 <label className="block text-xs font-medium text-slate-400 uppercase tracking-wide mb-3">Template</label>
@@ -1030,6 +1307,36 @@ export function CustomizeClient() {
                       <span className="text-slate-200 text-sm">{label}</span>
                     </label>
                   ))}
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-400 uppercase tracking-wide mb-3">Mode</label>
+                <div className="flex rounded-xl border border-slate-700 overflow-hidden">
+                  {(() => {
+                    const template = config.theme?.template ?? "minimal-pro";
+                    const isLightDefault = template === "clean-minimal";
+                    const isDark = isLightDefault
+                      ? config.theme?.darkMode === true
+                      : config.theme?.darkMode !== false;
+                    return (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => updateConfig("theme", { ...config.theme, darkMode: isLightDefault ? undefined : false })}
+                          className={`flex-1 py-2 text-sm font-medium transition-colors ${!isDark ? "bg-slate-100 text-slate-900" : "text-slate-400 hover:text-slate-200"}`}
+                        >
+                          ☀ Light
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => updateConfig("theme", { ...config.theme, darkMode: isLightDefault ? true : undefined })}
+                          className={`flex-1 py-2 text-sm font-medium transition-colors ${isDark ? "bg-slate-800 text-slate-100" : "text-slate-400 hover:text-slate-200"}`}
+                        >
+                          ☾ Dark
+                        </button>
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
               <div>
@@ -1122,18 +1429,21 @@ export function CustomizeClient() {
             </div>
           )}
 
+              </AccordionSection>
+            );
+          })}
         </div>
       </div>
 
-      {/* Resize handle: editor ↔ preview */}
+      {/* Resize handle */}
       <div
         className="w-1 shrink-0 cursor-col-resize bg-slate-800/60 hover:bg-amber-500/50 active:bg-amber-500/70 transition-colors"
-        onMouseDown={(e) => startPanelResize(e, "editor")}
+        onMouseDown={startPanelResize}
         title="Drag to resize"
       />
 
       {/* ── Live Preview Panel ── */}
-      <div className="flex-1 min-w-0 flex flex-col overflow-hidden bg-slate-950">
+      <div data-tour="preview-panel" className="flex-1 min-w-0 flex flex-col overflow-hidden bg-slate-950">
         {/* Browser chrome (merged with toolbar) */}
         <div className="shrink-0 flex items-center gap-3 px-4 py-2.5 bg-slate-900/90 border-b border-slate-700/50">
           <div className="flex gap-1.5">
@@ -1173,7 +1483,7 @@ export function CustomizeClient() {
       )}
 
       {/* Bottom bar */}
-      <div className="fixed bottom-0 right-0 z-30 border-t border-slate-800 bg-slate-900/95 backdrop-blur" style={{ left: sidebarW + editorW + 4 }}>
+      <div className="fixed bottom-0 right-0 z-30 border-t border-slate-800 bg-slate-900/95 backdrop-blur" style={{ left: editorW + 2 }}>
         <div className="flex items-center justify-between px-5 py-3">
           <Link
             href="/dashboard"
@@ -1183,6 +1493,7 @@ export function CustomizeClient() {
             <ArrowLeft className="h-4 w-4" /> Dashboard
           </Link>
           <button
+            data-tour="export-btn"
             type="button"
             onClick={handleChooseTemplate}
             disabled={!canProceed}
@@ -1196,6 +1507,19 @@ export function CustomizeClient() {
           </button>
         </div>
       </div>
+
+      {/* Take tour button */}
+      {!showTour && (
+        <button
+          type="button"
+          onClick={() => setShowTour(true)}
+          className="fixed bottom-20 left-4 z-30 flex items-center gap-1.5 rounded-full border border-slate-700 bg-slate-900/90 px-3 py-2 text-xs font-medium text-slate-400 shadow-lg backdrop-blur hover:border-amber-500/50 hover:text-amber-400 transition-colors"
+          aria-label="Take tour"
+        >
+          <HelpCircle className="h-3.5 w-3.5" />
+          Tour
+        </button>
+      )}
     </main>
   );
 }

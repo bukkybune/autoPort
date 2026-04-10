@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import type { PortfolioConfig } from "@/app/types/portfolio";
 import type { ColorSchemeId } from "@/app/types/portfolio";
 
@@ -14,12 +15,20 @@ const MP_ACCENTS: Record<Exclude<ColorSchemeId, "custom">, string> = {
   "gradient-purple": "#a78bfa",
 };
 
-const MP_BASE = {
+const MP_DARK = {
   bg: "#0a192f",
   bgCard: "#112240",
   bgHover: "#1e3a5f",
   text: "#ccd6f6",
   muted: "#8892b0",
+};
+
+const MP_LIGHT = {
+  bg: "#f0f4f8",
+  bgCard: "#e2e8f0",
+  bgHover: "#cbd5e1",
+  text: "#1a2a4a",
+  muted: "#4a5568",
 };
 
 const GH_SVG = (
@@ -46,10 +55,41 @@ const EXT_SVG = (
   </svg>
 );
 
+const GLOBE_SVG = (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24" aria-hidden>
+    <circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+  </svg>
+);
+
+const MD_SVG = (
+  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden>
+    <path d="M13.54 12a6.8 6.8 0 01-6.77 6.82A6.8 6.8 0 010 12a6.8 6.8 0 016.77-6.82A6.8 6.8 0 0113.54 12zM20.96 12c0 3.54-1.51 6.42-3.38 6.42-1.87 0-3.39-2.88-3.39-6.42s1.52-6.42 3.39-6.42 3.38 2.88 3.38 6.42M24 12c0 3.17-.53 5.75-1.19 5.75-.66 0-1.19-2.58-1.19-5.75s.53-5.75 1.19-5.75C23.47 6.25 24 8.83 24 12z"/>
+  </svg>
+);
+
+const DEVTO_SVG = (
+  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 448 512" aria-hidden>
+    <path d="M120.12 208.29c-3.88-2.9-7.77-4.35-11.65-4.35H91.03v104.47h17.45c3.88 0 7.77-1.45 11.65-4.35 3.88-2.9 5.82-7.25 5.82-13.06v-69.65c-.01-5.8-1.96-10.16-5.83-13.06zM404.1 32H43.9C19.7 32 .06 51.59 0 75.8v360.4C.06 460.41 19.7 480 43.9 480h360.2c24.21 0 43.84-19.59 43.9-43.8V75.8c-.06-24.21-19.7-43.8-43.9-43.8zM154.2 291.19c0 18.81-11.61 47.31-48.36 47.25h-46.4V172.98h47.38c35.44 0 47.36 28.46 47.36 47.28l.02 70.93zm100.68-88.66H201.6v38.42h32.57v29.57H201.6v38.41h53.29v29.57h-62.18c-11.16.29-20.44-8.53-20.72-19.69V193.7c-.27-11.15 8.56-20.41 19.71-20.69h63.19l-.01 29.52zm103.64 115.29c-13.2 30.75-36.85 24.63-47.44 0l-38.53-144.8h32.57l29.71 113.72 29.57-113.72h32.58l-38.46 144.8z"/>
+  </svg>
+);
+
+const YT_SVG = (
+  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden>
+    <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+  </svg>
+);
+
 export function MinimalProTemplate({ config }: { config: PortfolioConfig }) {
   const name = config.hero.name || "Portfolio";
   const sortedProjects = [...(config.projects.items || [])].sort((a, b) => a.order - b.order);
   const year = new Date().getFullYear();
+  const [testimonialIdx, setTestimonialIdx] = useState(0);
+  const testimonials = config.testimonials?.items ?? [];
+  const services = config.services?.items ?? [];
+
+  const isDark = config.theme?.darkMode !== false;
+  const MP_BASE = isDark ? MP_DARK : MP_LIGHT;
+  const dividerColor = isDark ? "#233554" : "#cbd5e1";
 
   const schemeId = config.theme?.colorScheme ?? "navy";
   const accentColor = schemeId === "custom"
@@ -62,7 +102,7 @@ export function MinimalProTemplate({ config }: { config: PortfolioConfig }) {
       <style>{`
         .mp-link { color: ${C.muted}; transition: color 0.2s, transform 0.2s; display: inline-flex; align-items: center; }
         .mp-link:hover { color: ${C.accent}; transform: translateY(-2px); }
-        .mp-divider { flex: 1; height: 1px; background: #233554; margin-left: 20px; }
+        .mp-divider { flex: 1; height: 1px; background: ${dividerColor}; margin-left: 20px; }
         .mp-project-card { transition: box-shadow 0.3s; }
         .mp-project-card:hover { box-shadow: 0 20px 60px rgba(100,255,218,0.08); }
         .mp-photo { filter: grayscale(100%) contrast(1); transition: filter 0.3s; }
@@ -78,6 +118,16 @@ export function MinimalProTemplate({ config }: { config: PortfolioConfig }) {
         .mp-fade-5 { animation: fadeInUp 0.5s ease both 0.5s; }
         .mp-nav-link { color: ${C.muted}; font-size: 13px; letter-spacing: 0.08em; text-decoration: none; transition: color 0.2s; }
         .mp-nav-link:hover { color: ${C.accent}; }
+        @keyframes mp-marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+        .mp-marquee-track { display: flex; white-space: nowrap; animation: mp-marquee 22s linear infinite; }
+        .mp-available { display: inline-flex; align-items: center; gap: 6px; padding: 5px 14px; border-radius: 9999px; font-size: 12px; font-weight: 600; border: 1px solid ${C.accent}; color: ${C.accent}; margin-bottom: 20px; font-family: 'SF Mono', 'Fira Code', monospace; letter-spacing: 0.05em; }
+        .mp-stat-num { font-size: clamp(28px,4vw,40px); font-weight: 900; color: ${C.text}; font-family: Inter, sans-serif; }
+        .mp-stat-label { font-size: 12px; color: ${C.muted}; margin-top: 2px; letter-spacing: 0.05em; }
+        .mp-service-card { background: ${C.bgCard}; border-left: 2px solid ${C.accent}; border-radius: 8px; transition: all 0.3s; overflow: hidden; }
+        .mp-service-card:hover { background: ${C.bgHover}; transform: translateX(4px); }
+        .mp-t-nav { width: 44px; height: 44px; border-radius: 9999px; border: 1px solid ${dividerColor}; background: ${C.bgCard}; color: ${C.text}; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; font-size: 18px; }
+        .mp-t-nav:hover { border-color: ${C.accent}; color: ${C.accent}; }
+        @media (prefers-reduced-motion: reduce) { .mp-marquee-track { animation: none; } }
       `}</style>
 
       {/* Sticky Nav Bar */}
@@ -85,7 +135,7 @@ export function MinimalProTemplate({ config }: { config: PortfolioConfig }) {
         style={{
           backgroundColor: `${C.bg}f0`,
           backdropFilter: "blur(12px)",
-          borderBottom: "1px solid #233554",
+          borderBottom: `1px solid ${dividerColor}`,
           padding: "18px 48px",
           position: "sticky",
           top: 0,
@@ -95,22 +145,27 @@ export function MinimalProTemplate({ config }: { config: PortfolioConfig }) {
           justifyContent: "space-between",
         }}
       >
-        <span
-          style={{
-            color: C.accent,
-            fontFamily: "Inter, sans-serif",
-            fontWeight: 700,
-            fontSize: 16,
-          }}
-        >
+        <span style={{ color: C.accent, fontFamily: "Inter, sans-serif", fontWeight: 700, fontSize: 16 }}>
           {name}
         </span>
         <div className="hidden md:flex items-center gap-6">
-          <a href="#about" className="mp-nav-link"><span style={{ color: C.accent }}>01.</span> About</a>
-          <a href="#skills" className="mp-nav-link"><span style={{ color: C.accent }}>02.</span> Skills</a>
-          <a href="#projects" className="mp-nav-link"><span style={{ color: C.accent }}>03.</span> Projects</a>
-          <a href="#experience" className="mp-nav-link"><span style={{ color: C.accent }}>04.</span> Experience</a>
-          <a href="#contact" className="mp-nav-link"><span style={{ color: C.accent }}>05.</span> Contact</a>
+          {(
+            [
+              config.about.enabled                                          && { id: "about",        label: "About" },
+              config.skills.enabled                                         && { id: "skills",       label: "Skills" },
+              (config.services?.enabled && services.length > 0)            && { id: "services",     label: "Services" },
+              config.projects.enabled                                       && { id: "projects",     label: "Projects" },
+              (config.testimonials?.enabled && testimonials.length > 0)    && { id: "testimonials", label: "Testimonials" },
+              (config.experience.enabled && config.experience.items?.length > 0) && { id: "experience", label: "Experience" },
+              { id: "contact", label: "Contact" },
+            ] as (false | { id: string; label: string })[]
+          )
+            .filter((s): s is { id: string; label: string } => Boolean(s))
+            .map((s, i) => (
+              <a key={s.id} href={`#${s.id}`} className="mp-nav-link">
+                <span style={{ color: C.accent }}>{String(i + 1).padStart(2, "0")}.</span> {s.label}
+              </a>
+            ))}
         </div>
       </nav>
 
@@ -118,6 +173,12 @@ export function MinimalProTemplate({ config }: { config: PortfolioConfig }) {
         {/* ── Hero ── */}
         {config.hero.enabled && (
           <section className="min-h-screen flex flex-col justify-center py-20">
+            {config.hero.availableForWork && (
+              <div className="mp-fade-1 mp-available" style={{ display: "inline-flex", width: "fit-content", marginBottom: 20 }}>
+                <span style={{ width: 7, height: 7, borderRadius: "50%", background: C.accent, display: "inline-block" }} />
+                Available for Work
+              </div>
+            )}
             <p className="mp-fade-1 text-sm mb-5" style={{ color: C.accent }}>Hi, my name is</p>
             <h1 className="mp-fade-2 font-bold leading-none mb-2" style={{ fontSize: "clamp(40px,8vw,80px)", fontFamily: "Inter, sans-serif", color: C.text }}>
               {config.hero.name || "Your Name"}
@@ -133,7 +194,7 @@ export function MinimalProTemplate({ config }: { config: PortfolioConfig }) {
             <div className="mp-fade-5 flex flex-wrap gap-4">
               <a
                 href="#projects"
-                className="inline-block px-7 py-4 rounded border-2 text-sm font-medium transition-all duration-300 hover:bg-[#64ffda1a]"
+                className="inline-block px-7 py-4 rounded border-2 text-sm font-medium transition-all duration-300"
                 style={{ borderColor: C.accent, color: C.accent }}
               >
                 Check out my work!
@@ -149,10 +210,32 @@ export function MinimalProTemplate({ config }: { config: PortfolioConfig }) {
                   {config.hero.ctaText}
                 </a>
               )}
+              {config.hero.resumeUrl && (
+                <a
+                  href={config.hero.resumeUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-block px-7 py-4 rounded border text-sm font-medium transition-all duration-300"
+                  style={{ borderColor: C.muted, color: C.muted }}
+                >
+                  Resume ↗
+                </a>
+              )}
             </div>
 
+            {config.hero.stats && config.hero.stats.length > 0 && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 40, marginTop: 40, paddingTop: 28, borderTop: `1px solid ${dividerColor}` }}>
+                {config.hero.stats.map((s, i) => (
+                  <div key={i}>
+                    <div className="mp-stat-num">{s.value}</div>
+                    <div className="mp-stat-label">{s.label}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+
             {/* Inline social links row */}
-            <div style={{ marginTop: 32, display: "flex", flexDirection: "row", alignItems: "center", gap: 20 }}>
+            <div style={{ marginTop: 32, display: "flex", flexDirection: "row", alignItems: "center", gap: 20, flexWrap: "wrap" }}>
               {config.contact.github && (
                 <a href={config.contact.github} target="_blank" rel="noopener noreferrer" className="mp-link" aria-label="GitHub">{GH_SVG}</a>
               )}
@@ -160,7 +243,19 @@ export function MinimalProTemplate({ config }: { config: PortfolioConfig }) {
                 <a href={config.contact.linkedin} target="_blank" rel="noopener noreferrer" className="mp-link" aria-label="LinkedIn">{LI_SVG}</a>
               )}
               {config.contact.twitter && (
-                <a href={config.contact.twitter} target="_blank" rel="noopener noreferrer" className="mp-link" aria-label="Twitter">{TW_SVG}</a>
+                <a href={config.contact.twitter} target="_blank" rel="noopener noreferrer" className="mp-link" aria-label="Twitter / X">{TW_SVG}</a>
+              )}
+              {config.contact.website && (
+                <a href={config.contact.website} target="_blank" rel="noopener noreferrer" className="mp-link" aria-label="Website">{GLOBE_SVG}</a>
+              )}
+              {config.contact.medium && (
+                <a href={config.contact.medium} target="_blank" rel="noopener noreferrer" className="mp-link" aria-label="Medium">{MD_SVG}</a>
+              )}
+              {config.contact.devto && (
+                <a href={config.contact.devto} target="_blank" rel="noopener noreferrer" className="mp-link" aria-label="Dev.to">{DEVTO_SVG}</a>
+              )}
+              {config.contact.youtube && (
+                <a href={config.contact.youtube} target="_blank" rel="noopener noreferrer" className="mp-link" aria-label="YouTube">{YT_SVG}</a>
               )}
               {config.contact.email && (
                 <a
@@ -218,7 +313,7 @@ export function MinimalProTemplate({ config }: { config: PortfolioConfig }) {
                 <div
                   key={cat.name}
                   className="p-6 rounded-lg"
-                  style={{ backgroundColor: C.bgCard, border: "1px solid #1d3461" }}
+                  style={{ backgroundColor: C.bgCard, border: `1px solid ${dividerColor}` }}
                 >
                   <h3 className="text-sm font-semibold mb-4" style={{ color: C.accent }}>{cat.name}</h3>
                   <ul className="space-y-2">
@@ -235,29 +330,66 @@ export function MinimalProTemplate({ config }: { config: PortfolioConfig }) {
           </section>
         )}
 
+        {/* ── Services ── */}
+        {config.services?.enabled && services.length > 0 && (
+          <section className="py-24" id="services">
+            <div className="flex items-center mb-10">
+              <span className="text-xl mr-3" style={{ color: C.accent }}>03.</span>
+              <h2 className="text-3xl font-bold" style={{ fontFamily: "Inter, sans-serif", color: C.text }}>Services</h2>
+              <div className="mp-divider" />
+            </div>
+            <div className="space-y-5">
+              {services.map((svc, i) => (
+                <div key={i} className="mp-service-card">
+                  {svc.imageUrl ? (
+                    <div className="grid md:grid-cols-2 gap-0 items-stretch">
+                      <div className="p-6">
+                        <h3 className="font-bold text-lg mb-2" style={{ color: C.text, fontFamily: "Inter, sans-serif" }}>{svc.title}</h3>
+                        <p className="text-sm leading-relaxed mb-4" style={{ color: C.muted }}>{svc.description}</p>
+                        {svc.link && (
+                          <a href={svc.link} target="_blank" rel="noopener noreferrer" className="inline-block px-5 py-2 rounded border text-xs font-medium" style={{ borderColor: C.accent, color: C.accent }}>
+                            View →
+                          </a>
+                        )}
+                      </div>
+                      <img src={svc.imageUrl} alt={svc.title} style={{ width: "100%", height: "100%", minHeight: 200, objectFit: "cover", display: "block", filter: "grayscale(20%)" }} />
+                    </div>
+                  ) : (
+                    <div className="p-6 flex items-center justify-between gap-6">
+                      <div>
+                        <h3 className="font-bold text-base mb-2" style={{ color: C.text, fontFamily: "Inter, sans-serif" }}>{svc.title}</h3>
+                        <p className="text-sm leading-relaxed" style={{ color: C.muted }}>{svc.description}</p>
+                      </div>
+                      {svc.link && (
+                        <a href={svc.link} target="_blank" rel="noopener noreferrer" className="mp-link" style={{ flexShrink: 0 }}>{EXT_SVG}</a>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
         {/* ── Projects ── */}
         {config.projects.enabled && sortedProjects.length > 0 && (
           <section className="py-24" id="projects">
+            <div style={{ overflow: "hidden", marginBottom: 32 }} aria-hidden>
+              <div className="mp-marquee-track" style={{ fontSize: "clamp(48px,7vw,80px)", fontWeight: 900, color: C.text, opacity: 0.04, fontFamily: "Inter, sans-serif" }}>
+                {"PROJECTS · PROJECTS · PROJECTS · PROJECTS · \u00A0".repeat(2).split("").map((ch, i) => <span key={i}>{ch}</span>)}
+              </div>
+            </div>
             <div className="flex items-center mb-16">
-              <span className="text-xl mr-3" style={{ color: C.accent }}>03.</span>
+              <span className="text-xl mr-3" style={{ color: C.accent }}>0{config.services?.enabled && services.length > 0 ? 4 : 3}.</span>
               <h2 className="text-3xl font-bold" style={{ fontFamily: "Inter, sans-serif", color: C.text }}>Things I've Built</h2>
               <div className="mp-divider" />
             </div>
             <div className="space-y-32">
               {sortedProjects.map((project, idx) => (
                 <div key={project.id} className="mp-project-card relative grid md:grid-cols-12 gap-4 items-center">
-                  {/* Image */}
                   <div className={`md:col-span-7 ${idx % 2 === 0 ? "md:col-start-1" : "md:col-start-6 md:row-start-1"}`}>
-                    <a
-                      href={project.demoUrl || project.githubUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="block relative group"
-                    >
-                      <div
-                        className="absolute inset-0 rounded-lg z-10 transition-opacity duration-300 group-hover:opacity-0"
-                        style={{ backgroundColor: `${C.bg}99` }}
-                      />
+                    <a href={project.demoUrl || project.githubUrl} target="_blank" rel="noopener noreferrer" className="block relative group">
+                      <div className="absolute inset-0 rounded-lg z-10 transition-opacity duration-300 group-hover:opacity-0" style={{ backgroundColor: `${C.bg}99` }} />
                       <img
                         src={project.imageUrl || "https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=800&h=500&fit=crop"}
                         alt={project.customTitle}
@@ -266,19 +398,10 @@ export function MinimalProTemplate({ config }: { config: PortfolioConfig }) {
                       />
                     </a>
                   </div>
-                  {/* Content */}
-                  <div
-                    className={`md:col-span-6 z-10 ${idx % 2 === 0 ? "md:col-start-7 md:row-start-1 text-right" : "md:col-start-1 md:row-start-1 text-left"} flex flex-col justify-center`}
-                  >
+                  <div className={`md:col-span-6 z-10 ${idx % 2 === 0 ? "md:col-start-7 md:row-start-1 text-right" : "md:col-start-1 md:row-start-1 text-left"} flex flex-col justify-center`}>
                     <p className="text-xs mb-2" style={{ color: C.accent }}>Featured Project</p>
                     <h3 className="text-2xl font-bold mb-4" style={{ color: C.text, fontFamily: "Inter, sans-serif" }}>
-                      <a
-                        href={project.demoUrl || project.githubUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="transition-colors hover:opacity-80"
-                        style={{ color: C.text }}
-                      >
+                      <a href={project.demoUrl || project.githubUrl} target="_blank" rel="noopener noreferrer" className="transition-colors hover:opacity-80" style={{ color: C.text }}>
                         {project.customTitle || project.originalName}
                       </a>
                     </h3>
@@ -307,21 +430,61 @@ export function MinimalProTemplate({ config }: { config: PortfolioConfig }) {
           </section>
         )}
 
+        {/* ── Testimonials ── */}
+        {config.testimonials?.enabled && testimonials.length > 0 && (
+          <section className="py-24" id="testimonials">
+            <div style={{ overflow: "hidden", marginBottom: 32 }} aria-hidden>
+              <div className="mp-marquee-track" style={{ fontSize: "clamp(48px,7vw,80px)", fontWeight: 900, color: C.text, opacity: 0.04, fontFamily: "Inter, sans-serif" }}>
+                {"TESTIMONIALS · TESTIMONIALS · \u00A0".repeat(2).split("").map((ch, i) => <span key={i}>{ch}</span>)}
+              </div>
+            </div>
+            <div className="flex items-center mb-10">
+              <span className="text-xl mr-3" style={{ color: C.accent }}>0{4 + (config.services?.enabled && services.length > 0 ? 1 : 0)}.</span>
+              <h2 className="text-3xl font-bold" style={{ fontFamily: "Inter, sans-serif", color: C.text }}>Testimonials</h2>
+              <div className="mp-divider" />
+            </div>
+            {(() => {
+              const t = testimonials[testimonialIdx] ?? testimonials[0];
+              return (
+                <div className="rounded-lg overflow-hidden" style={{ display: "grid", gridTemplateColumns: t.avatarUrl ? "1fr 1fr" : "1fr", border: `1px solid ${dividerColor}`, background: C.bgCard }}>
+                  {t.avatarUrl && (
+                    <img src={t.avatarUrl} alt={t.name} className="mp-photo" style={{ width: "100%", height: 320, objectFit: "cover", display: "block" }} />
+                  )}
+                  <div style={{ padding: "40px 36px", display: "flex", flexDirection: "column", justifyContent: "space-between", borderLeft: `2px solid ${C.accent}` }}>
+                    <p style={{ fontSize: "clamp(15px,1.8vw,18px)", lineHeight: 1.75, color: C.muted, fontStyle: "italic", marginBottom: 28 }}>"{t.quote}"</p>
+                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                      <div style={{ width: 40, height: 40, borderRadius: "50%", background: C.bgHover, border: `1px solid ${C.accent}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, color: C.accent, fontWeight: 700 }}>
+                        {t.name[0]}
+                      </div>
+                      <div>
+                        <div style={{ fontWeight: 600, color: C.text, fontSize: 14, fontFamily: "Inter, sans-serif" }}>{t.name}</div>
+                        <div style={{ fontSize: 12, color: C.muted, letterSpacing: "0.05em" }}>{t.role}{t.company ? `, ${t.company}` : ""}</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+            {testimonials.length > 1 && (
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 16 }}>
+                <button className="mp-t-nav" onClick={() => setTestimonialIdx((i) => (i - 1 + testimonials.length) % testimonials.length)} aria-label="Previous">‹</button>
+                <button className="mp-t-nav" onClick={() => setTestimonialIdx((i) => (i + 1) % testimonials.length)} aria-label="Next">›</button>
+              </div>
+            )}
+          </section>
+        )}
+
         {/* ── Experience ── */}
         {config.experience.enabled && config.experience.items?.length > 0 && (
           <section className="py-24" id="experience">
             <div className="flex items-center mb-10">
-              <span className="text-xl mr-3" style={{ color: C.accent }}>04.</span>
+              <span className="text-xl mr-3" style={{ color: C.accent }}>0{4 + (config.services?.enabled && services.length > 0 ? 1 : 0) + (config.testimonials?.enabled && testimonials.length > 0 ? 1 : 0)}.</span>
               <h2 className="text-3xl font-bold" style={{ fontFamily: "Inter, sans-serif", color: C.text }}>Experience</h2>
               <div className="mp-divider" />
             </div>
             <div className="space-y-6">
               {config.experience.items.map((entry, i) => (
-                <div
-                  key={i}
-                  className="p-6 rounded-lg border-l-2 transition-all duration-300 hover:bg-[#112240]"
-                  style={{ borderColor: C.accent, backgroundColor: C.bgCard }}
-                >
+                <div key={i} className="p-6 rounded-lg border-l-2" style={{ borderColor: C.accent, backgroundColor: C.bgCard }}>
                   <p className="font-semibold text-base" style={{ color: C.text }}>{entry.role}</p>
                   <p className="text-sm mt-1" style={{ color: C.accent }}>{entry.company}</p>
                   <p className="text-xs mt-1 mb-3" style={{ color: C.muted }}>{entry.duration}</p>
@@ -346,15 +509,24 @@ export function MinimalProTemplate({ config }: { config: PortfolioConfig }) {
             </p>
             <a
               href={`mailto:${config.contact.email}`}
-              className="inline-block px-8 py-4 rounded border-2 text-sm font-medium transition-all duration-300 hover:bg-[#64ffda1a]"
+              className="inline-block px-8 py-4 rounded border-2 text-sm font-medium transition-all duration-300"
               style={{ borderColor: C.accent, color: C.accent }}
             >
               {config.contact.ctaLabel || "Say Hello"}
             </a>
+            <div className="flex gap-5 justify-center mt-10 flex-wrap">
+              {config.contact.github && <a href={config.contact.github} target="_blank" rel="noopener noreferrer" className="mp-link" aria-label="GitHub">{GH_SVG}</a>}
+              {config.contact.linkedin && <a href={config.contact.linkedin} target="_blank" rel="noopener noreferrer" className="mp-link" aria-label="LinkedIn">{LI_SVG}</a>}
+              {config.contact.twitter && <a href={config.contact.twitter} target="_blank" rel="noopener noreferrer" className="mp-link" aria-label="Twitter">{TW_SVG}</a>}
+              {config.contact.website && <a href={config.contact.website} target="_blank" rel="noopener noreferrer" className="mp-link" aria-label="Website">{GLOBE_SVG}</a>}
+              {config.contact.medium && <a href={config.contact.medium} target="_blank" rel="noopener noreferrer" className="mp-link" aria-label="Medium">{MD_SVG}</a>}
+              {config.contact.devto && <a href={config.contact.devto} target="_blank" rel="noopener noreferrer" className="mp-link" aria-label="Dev.to">{DEVTO_SVG}</a>}
+              {config.contact.youtube && <a href={config.contact.youtube} target="_blank" rel="noopener noreferrer" className="mp-link" aria-label="YouTube">{YT_SVG}</a>}
+            </div>
           </section>
         )}
 
-        <footer className="py-8 text-center text-xs" style={{ color: C.muted }}>
+        <footer className="py-8 text-center text-xs" style={{ color: C.muted, borderTop: `1px solid ${dividerColor}` }}>
           <p>© {year} {name}. Built with AutoPort.</p>
         </footer>
       </main>

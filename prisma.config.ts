@@ -3,12 +3,19 @@
 import "dotenv/config";
 import { defineConfig } from "prisma/config";
 
+// Prisma's migrate engine requires the "postgresql://" scheme.
+// Supabase and some PaaS providers supply "postgres://" — normalise it here.
+function migrateUrl(): string {
+  const raw = process.env["DATABASE_URL"] ?? "";
+  return raw.replace(/^postgres:\/\//, "postgresql://");
+}
+
 export default defineConfig({
   schema: "prisma/schema.prisma",
   migrations: {
     path: "prisma/migrations",
   },
   datasource: {
-    url: process.env["DATABASE_URL"],
+    url: migrateUrl(),
   },
 });

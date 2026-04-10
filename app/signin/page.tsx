@@ -182,7 +182,11 @@ export default function SignInPage() {
         )}
 
         <p className="mt-6 text-center text-xs text-slate-500">
-          By continuing, you agree to AutoPort&apos;s terms.{" "}
+          By continuing, you agree to AutoPort&apos;s{" "}
+          <Link href="/tos" className="text-slate-300 hover:text-white underline">
+            Terms of Service
+          </Link>
+          .{" "}
           <Link href="/" className="text-slate-300 hover:text-white underline">
             Back to home
           </Link>

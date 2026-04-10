@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { signOut, useSession } from "next-auth/react";
 import { Menu, X, Zap } from "lucide-react";
 
@@ -12,6 +12,7 @@ export function Navbar() {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
@@ -20,9 +21,22 @@ export function Navbar() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
+  // Close the dropdown when navigating
   useEffect(() => {
     setOpen(false);
   }, [pathname]);
+
+  // Close the user dropdown when clicking outside of it
+  useEffect(() => {
+    if (!open) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [open]);
 
   const isAuthenticated = status === "authenticated";
   const isDashboard = pathname?.startsWith("/dashboard");
@@ -67,15 +81,18 @@ export function Navbar() {
                 <a href="#features" className="transition-colors hover:text-slate-100">Features</a>
                 <a href="#how-it-works" className="transition-colors hover:text-slate-100">How it works</a>
                 <a href="#templates" className="transition-colors hover:text-slate-100">Templates</a>
+                <Link href="/help" className="transition-colors hover:text-slate-100">Help</Link>
               </nav>
             )}
 
             {isAuthenticated && session?.user ? (
-              <div className="relative">
+              <div className="relative" ref={dropdownRef}>
                 <button
                   type="button"
                   className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-slate-100 transition-colors hover:bg-white/10"
                   onClick={() => setOpen((v) => !v)}
+                  aria-haspopup="true"
+                  aria-expanded={open}
                 >
                   <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-amber-400 to-amber-600 text-[11px] font-bold text-slate-950">
                     {initial}
@@ -83,9 +100,13 @@ export function Navbar() {
                   <span className="max-w-[120px] truncate">{displayName}</span>
                 </button>
                 {open && (
-                  <div className="absolute right-0 mt-2 w-44 rounded-xl border border-white/10 bg-slate-950/95 shadow-xl shadow-black/40 backdrop-blur-md">
+                  <div
+                    className="absolute right-0 mt-2 w-44 rounded-xl border border-white/10 bg-slate-950/95 shadow-xl shadow-black/40 backdrop-blur-md"
+                    role="menu"
+                  >
                     <button
                       type="button"
+                      role="menuitem"
                       className="block w-full rounded-t-xl px-3 py-2.5 text-left text-sm text-slate-100 hover:bg-white/5"
                       onClick={() => { setOpen(false); router.push("/dashboard"); }}
                     >
@@ -93,14 +114,16 @@ export function Navbar() {
                     </button>
                     <button
                       type="button"
-                      className="block w-full cursor-not-allowed px-3 py-2.5 text-left text-sm text-slate-500 opacity-60"
-                      disabled
+                      role="menuitem"
+                      className="block w-full px-3 py-2.5 text-left text-sm text-slate-100 hover:bg-white/5"
+                      onClick={() => { setOpen(false); router.push("/settings"); }}
                     >
-                      Settings (soon)
+                      Settings
                     </button>
                     <div className="my-1 border-t border-white/10" />
                     <button
                       type="button"
+                      role="menuitem"
                       className="block w-full rounded-b-xl px-3 py-2.5 text-left text-sm text-red-300 hover:bg-red-500/10"
                       onClick={handleSignOut}
                     >
@@ -125,6 +148,7 @@ export function Navbar() {
             className="inline-flex items-center justify-center rounded-lg p-2 text-slate-300 hover:bg-white/5 md:hidden"
             onClick={() => setOpen((v) => !v)}
             aria-label="Toggle navigation"
+            aria-expanded={open}
           >
             {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
@@ -136,12 +160,14 @@ export function Navbar() {
         <div className="border-t border-white/10 bg-slate-950/95 px-4 py-4 md:hidden">
           <nav className="flex flex-col gap-1 text-sm">
             {isAuthenticated ? (
-              <Link
-                href="/dashboard"
-                className="rounded-lg px-2 py-2 text-slate-200 transition-colors hover:bg-white/5 hover:text-white"
-              >
-                Dashboard
-              </Link>
+              <>
+                <Link href="/dashboard" className="rounded-lg px-2 py-2 text-slate-200 transition-colors hover:bg-white/5 hover:text-white">
+                  Dashboard
+                </Link>
+                <Link href="/settings" className="rounded-lg px-2 py-2 text-slate-200 transition-colors hover:bg-white/5 hover:text-white">
+                  Settings
+                </Link>
+              </>
             ) : (
               <>
                 <a href="#features" className="rounded-lg px-2 py-2 text-slate-200 transition-colors hover:bg-white/5 hover:text-white">Features</a>

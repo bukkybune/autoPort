@@ -1,4 +1,12 @@
 import NextAuth from "next-auth";
+
+// Fail fast in production if NEXTAUTH_URL is not configured.
+// Vercel sets NEXTAUTH_URL automatically, but other hosts must set it explicitly.
+if (process.env.NODE_ENV === "production" && !process.env.NEXTAUTH_URL) {
+  throw new Error(
+    "NEXTAUTH_URL must be set in production. Set it to the canonical URL of your deployment (e.g. https://yourdomain.com)."
+  );
+}
 import GitHub from "next-auth/providers/github";
 import Google from "next-auth/providers/google";
 import Credentials from "next-auth/providers/credentials";
