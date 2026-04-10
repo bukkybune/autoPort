@@ -459,6 +459,17 @@ export function CustomizeClient() {
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [showTour, setShowTour] = useState(false);
 
+  // Mobile layout: track breakpoint and active tab
+  const [isMobile, setIsMobile] = useState(false);
+  const [mobileTab, setMobileTab] = useState<"edit" | "preview">("edit");
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 767px)");
+    setIsMobile(mq.matches);
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+
   useEffect(() => {
     if (!localStorage.getItem(CUSTOMIZE_TOUR_KEY)) setShowTour(true);
   }, []);
@@ -735,11 +746,36 @@ export function CustomizeClient() {
   const editingProject = config.projects.items.find((p) => p.id === editingProjectId);
 
   return (
-    <main className="flex bg-slate-950 text-slate-100" style={{ height: 'calc(100vh - 4rem)', overflow: 'hidden' }}>
+    <main className="flex flex-col bg-slate-950 text-slate-100" style={{ height: "calc(100vh - 4rem)", overflow: "hidden" }}>
       {showTour && <Tour steps={CUSTOMIZE_TOUR_STEPS} onDone={completeTour} />}
 
+      {/* ── Mobile tab bar ── */}
+      <div className="md:hidden flex shrink-0 border-b border-slate-800 bg-slate-900/60">
+        <button
+          type="button"
+          onClick={() => setMobileTab("edit")}
+          className={`flex-1 py-2.5 text-sm font-medium transition-colors ${mobileTab === "edit" ? "text-amber-400 border-b-2 border-amber-500 -mb-px" : "text-slate-400 hover:text-slate-200"}`}
+        >
+          Edit
+        </button>
+        <button
+          type="button"
+          onClick={() => setMobileTab("preview")}
+          className={`flex-1 py-2.5 text-sm font-medium transition-colors ${mobileTab === "preview" ? "text-amber-400 border-b-2 border-amber-500 -mb-px" : "text-slate-400 hover:text-slate-200"}`}
+        >
+          Preview
+        </button>
+      </div>
+
+      {/* ── Three-panel area ── */}
+      <div className="flex flex-1 min-h-0 overflow-hidden">
+
       {/* ── Accordion Editor Panel ── */}
-      <div data-tour="editor-panel" className="shrink-0 border-r border-slate-800/80 flex flex-col overflow-hidden bg-slate-900/30" style={{ width: editorW }}>
+      <div
+        data-tour="editor-panel"
+        className={`${isMobile && mobileTab !== "edit" ? "hidden" : ""} shrink-0 border-r border-slate-800/80 flex flex-col overflow-hidden bg-slate-900/30`}
+        style={{ width: isMobile ? "100%" : editorW }}
+      >
         <div className="px-4 py-3.5 border-b border-slate-800/60 shrink-0 flex items-center justify-between">
           <Link
             href="/dashboard"
@@ -1435,15 +1471,18 @@ export function CustomizeClient() {
         </div>
       </div>
 
-      {/* Resize handle */}
+      {/* Resize handle — desktop only */}
       <div
-        className="w-1 shrink-0 cursor-col-resize bg-slate-800/60 hover:bg-amber-500/50 active:bg-amber-500/70 transition-colors"
+        className="hidden md:block w-1 shrink-0 cursor-col-resize bg-slate-800/60 hover:bg-amber-500/50 active:bg-amber-500/70 transition-colors"
         onMouseDown={startPanelResize}
         title="Drag to resize"
       />
 
       {/* ── Live Preview Panel ── */}
-      <div data-tour="preview-panel" className="flex-1 min-w-0 flex flex-col overflow-hidden bg-slate-950">
+      <div
+        data-tour="preview-panel"
+        className={`${isMobile && mobileTab !== "preview" ? "hidden" : ""} flex-1 min-w-0 flex flex-col overflow-hidden bg-slate-950`}
+      >
         {/* Browser chrome (merged with toolbar) */}
         <div className="shrink-0 flex items-center gap-3 px-4 py-2.5 bg-slate-900/90 border-b border-slate-700/50">
           <div className="flex gap-1.5">
@@ -1482,15 +1521,21 @@ export function CustomizeClient() {
         />
       )}
 
-      {/* Bottom bar */}
-      <div className="fixed bottom-0 right-0 z-30 border-t border-slate-800 bg-slate-900/95 backdrop-blur" style={{ left: editorW + 2 }}>
-        <div className="flex items-center justify-between px-5 py-3">
+      </div>{/* end three-panel wrapper */}
+
+      {/* Bottom bar — full width on mobile, offset by editor width on desktop */}
+      <div
+        className="fixed bottom-0 right-0 z-30 border-t border-slate-800 bg-slate-900/95 backdrop-blur"
+        style={{ left: isMobile ? 0 : editorW + 2 }}
+      >
+        <div className="flex items-center justify-between px-4 py-3 gap-3">
           <Link
             href="/dashboard"
             onClick={syncSelectionToDashboard}
             className="inline-flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-800/80 px-4 py-2.5 text-sm font-medium text-slate-200 hover:bg-slate-700 transition-colors"
           >
-            <ArrowLeft className="h-4 w-4" /> Dashboard
+            <ArrowLeft className="h-4 w-4" />
+            <span className="hidden sm:inline">Dashboard</span>
           </Link>
           <button
             data-tour="export-btn"
@@ -1508,8 +1553,8 @@ export function CustomizeClient() {
         </div>
       </div>
 
-      {/* Take tour button */}
-      {!showTour && (
+      {/* Take tour button — hide on mobile to avoid overlap */}
+      {!showTour && !isMobile && (
         <button
           type="button"
           onClick={() => setShowTour(true)}
