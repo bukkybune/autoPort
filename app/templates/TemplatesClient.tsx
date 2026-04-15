@@ -12,6 +12,8 @@ import {
   Download,
   Copy,
   ChevronDown,
+  Globe,
+  ExternalLink,
 } from "lucide-react";
 import { PORTFOLIO_CONFIG_KEY } from "@/app/types/portfolio";
 import type { PortfolioConfig } from "@/app/types/portfolio";
@@ -66,6 +68,9 @@ export function TemplatesClient() {
   const [toast, setToast] = useState<string | null>(null);
   const [copying, setCopying] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [publishing, setPublishing] = useState(false);
+  const [publishedUrl, setPublishedUrl] = useState<string | null>(null);
+  const [linkCopied, setLinkCopied] = useState(false);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -131,6 +136,61 @@ export function TemplatesClient() {
     }
     setCopying(false);
   }, [selectedTemplate, config, showToast]);
+
+  const handlePublish = useCallback(async () => {
+    if (!config) return;
+    setExportOpen(false);
+    setPublishing(true);
+
+    // Merge selected template into config before saving
+    const updatedConfig: PortfolioConfig = {
+      ...config,
+      theme: { ...config.theme, template: selectedTemplate },
+    };
+
+    try {
+      // 1. Save config to server
+      const saveRes = await fetch("/api/portfolio", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ config: updatedConfig }),
+      });
+      if (!saveRes.ok) {
+        showToast("Failed to save portfolio. Please try again.");
+        return;
+      }
+
+      // 2. Publish
+      const publishRes = await fetch("/api/portfolio/publish", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ publish: true }),
+      });
+      const data = await publishRes.json() as { url?: string | null; slug?: string | null; error?: string };
+      if (!publishRes.ok || !data.url) {
+        showToast(data.error ?? "Failed to publish. Please try again.");
+        return;
+      }
+
+      setPublishedUrl(data.url);
+
+      // Also update sessionStorage so customize page reflects the template choice
+      try {
+        sessionStorage.setItem(PORTFOLIO_CONFIG_KEY, JSON.stringify(updatedConfig));
+      } catch { /* ignore */ }
+    } catch {
+      showToast("Network error. Check your connection and try again.");
+    } finally {
+      setPublishing(false);
+    }
+  }, [config, selectedTemplate, showToast]);
+
+  const handleCopyLink = useCallback(async () => {
+    if (!publishedUrl) return;
+    await navigator.clipboard.writeText(publishedUrl);
+    setLinkCopied(true);
+    setTimeout(() => setLinkCopied(false), 2000);
+  }, [publishedUrl]);
 
   if (status === "loading" || loading) {
     return (
@@ -274,6 +334,31 @@ export function TemplatesClient() {
             <ArrowLeft className="h-4 w-4" aria-hidden />
             Back to Customize
           </Link>
+
+          {publishedUrl ? (
+            <div className="flex items-center gap-3">
+              <span className="hidden sm:flex items-center gap-1.5 text-sm text-blue-300">
+                <Globe className="h-4 w-4 flex-shrink-0" aria-hidden />
+                Portfolio live!
+              </span>
+              <a
+                href={publishedUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1 text-xs text-slate-400 hover:text-slate-200 max-w-[180px] truncate"
+              >
+                {publishedUrl.replace(/^https?:\/\//, "")}
+                <ExternalLink className="h-3 w-3 flex-shrink-0" aria-hidden />
+              </a>
+              <button
+                type="button"
+                onClick={handleCopyLink}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-500"
+              >
+                {linkCopied ? <><Check className="h-4 w-4" aria-hidden />Copied!</> : <><Copy className="h-4 w-4" aria-hidden />Copy link</>}
+              </button>
+            </div>
+          ) : (
           <div className="relative">
             <button
               type="button"
@@ -291,6 +376,16 @@ export function TemplatesClient() {
                   onClick={() => setExportOpen(false)}
                 />
                 <div className="absolute right-0 bottom-full mb-2 z-50 w-56 rounded-xl border border-slate-700 bg-slate-900 shadow-xl py-1">
+                  <button
+                    type="button"
+                    onClick={handlePublish}
+                    disabled={publishing}
+                    className="flex w-full items-center gap-2 px-4 py-2.5 text-sm font-medium text-blue-300 hover:bg-slate-800 disabled:opacity-60"
+                  >
+                    <Globe className="h-4 w-4" aria-hidden />
+                    {publishing ? "Publishing…" : "Publish & Share"}
+                  </button>
+                  <div className="my-1 border-t border-slate-700/60" />
                   <button
                     type="button"
                     onClick={handleDownloadHTML}
@@ -313,6 +408,7 @@ export function TemplatesClient() {
               </>
             )}
           </div>
+          )}
         </div>
       </div>
 

@@ -33,6 +33,19 @@ function safeUrl(url: string | undefined | null): string {
   }
 }
 
+/**
+ * Like safeUrl, but also converts Google Drive share/view/uc links to the
+ * thumbnail endpoint which reliably returns raw image bytes (no interstitial).
+ */
+function safeImageUrl(url: string | undefined | null): string {
+  const base = safeUrl(url);
+  if (!base || base === "#") return base;
+  const m = base.match(/drive\.google\.com\/(?:file\/d\/|open\?id=)([\w-]+)/)
+    ?? base.match(/drive\.google\.com\/uc\?.*[?&]id=([\w-]+)/);
+  if (m) return `https://drive.google.com/thumbnail?id=${m[1]}&sz=s800`;
+  return base;
+}
+
 const sorted = (items: CustomizedProject[]) => [...items].sort((a, b) => a.order - b.order);
 const year = new Date().getFullYear();
 
@@ -205,7 +218,7 @@ function renderMinimalPro(config: PortfolioConfig): string {
           ${config.about.description ? `<p class="muted" style="font-size:17px;line-height:1.7;margin-bottom:16px;">${escapeHtml(config.about.description)}</p>` : ""}
           ${config.about.funFacts ? `<p class="muted" style="font-size:15px;line-height:1.7;">${escapeHtml(config.about.funFacts)}</p>` : ""}
         </div>
-        ${config.hero.photoUrl ? `<div><img src="${escapeAttr(safeUrl(config.hero.photoUrl))}" alt="" style="width:200px;height:200px;object-fit:cover;border-radius:8px;filter:grayscale(30%);" /></div>` : ""}
+        ${config.hero.photoUrl ? `<div><img src="${escapeAttr(safeImageUrl(config.hero.photoUrl))}" alt="" style="width:200px;height:200px;object-fit:cover;border-radius:8px;filter:grayscale(30%);" /></div>` : ""}
       </div>
     </section>`;
   }
@@ -238,7 +251,7 @@ function renderMinimalPro(config: PortfolioConfig): string {
           <p style="color:${MP.muted};font-size:14px;line-height:1.7;margin:0 0 ${svc.link ? "16px" : "0"};">${escapeHtml(svc.description)}</p>
           ${svc.link ? `<a href="${escapeAttr(safeUrl(svc.link))}" target="_blank" rel="noopener noreferrer" class="btn" style="display:inline-flex;padding:8px 18px;font-size:13px;">View →</a>` : ""}
         </div>
-        ${svc.imageUrl ? `<img src="${escapeAttr(safeUrl(svc.imageUrl))}" alt="" style="width:100%;height:100%;min-height:180px;object-fit:cover;display:block;filter:grayscale(20%);" />` : ""}
+        ${svc.imageUrl ? `<img src="${escapeAttr(safeImageUrl(svc.imageUrl))}" alt="" style="width:100%;height:100%;min-height:180px;object-fit:cover;display:block;filter:grayscale(20%);" />` : ""}
       </div>`).join("");
     html += `<section style="padding:80px 0;" id="services">
       <div class="section-head">
@@ -277,7 +290,7 @@ function renderMinimalPro(config: PortfolioConfig): string {
     const allT = config.testimonials.items;
     const tCards = allT.map((t, i) => `
       <div style="background:${MP.bgCard};border:1px solid ${MP.divider};border-radius:8px;overflow:hidden;display:${t.avatarUrl ? "grid" : "block"};grid-template-columns:${t.avatarUrl ? "1fr 1fr" : "1fr"};${i > 0 ? "display:none;" : ""}">
-        ${t.avatarUrl ? `<img src="${escapeAttr(safeUrl(t.avatarUrl))}" alt="" style="width:100%;height:280px;object-fit:cover;display:block;filter:grayscale(20%);" />` : ""}
+        ${t.avatarUrl ? `<img src="${escapeAttr(safeImageUrl(t.avatarUrl))}" alt="" style="width:100%;height:280px;object-fit:cover;display:block;filter:grayscale(20%);" />` : ""}
         <div style="padding:32px;border-left:2px solid ${accent};">
           <p style="font-size:16px;line-height:1.75;color:${MP.muted};font-style:italic;margin:0 0 24px;">"${escapeHtml(t.quote)}"</p>
           <div style="display:flex;align-items:center;gap:12px;">
@@ -397,7 +410,7 @@ function renderCleanMinimal(config: PortfolioConfig): string {
         </div>
         ${config.hero.photoUrl ? `<div style="position:relative;">
           <div style="position:absolute;inset:-12px;background:${accent}14;border-radius:20px;transform:rotate(2deg);"></div>
-          <img src="${escapeAttr(safeUrl(config.hero.photoUrl))}" alt="" style="position:relative;width:100%;aspect-ratio:4/5;object-fit:cover;border-radius:18px;border:1px solid ${CM.border};" />
+          <img src="${escapeAttr(safeImageUrl(config.hero.photoUrl))}" alt="" style="position:relative;width:100%;aspect-ratio:4/5;object-fit:cover;border-radius:18px;border:1px solid ${CM.border};" />
         </div>` : ""}
       </div>
     </section>`;
@@ -440,7 +453,7 @@ function renderCleanMinimal(config: PortfolioConfig): string {
           <p style="font-family:Inter,sans-serif;font-size:15px;line-height:1.75;color:${CM.muted};margin:0 0 ${svc.link ? "20px" : "0"};">${escapeHtml(svc.description)}</p>
           ${svc.link ? `<a href="${escapeAttr(safeUrl(svc.link))}" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:10px 22px;background:${CM.text};color:${CM.bg};font-family:Inter,sans-serif;font-size:13px;font-weight:700;border-radius:8px;text-decoration:none;">View →</a>` : ""}
         </div>
-        ${svc.imageUrl ? `<img src="${escapeAttr(safeUrl(svc.imageUrl))}" alt="" style="width:100%;height:100%;min-height:200px;object-fit:cover;display:block;" />` : ""}
+        ${svc.imageUrl ? `<img src="${escapeAttr(safeImageUrl(svc.imageUrl))}" alt="" style="width:100%;height:100%;min-height:200px;object-fit:cover;display:block;" />` : ""}
       </div>`).join("");
     html += `<section style="padding:80px 32px;" id="services" class="cm-section"><div style="max-width:960px;margin:0 auto;">
       <p style="font-family:Inter,sans-serif;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.15em;color:${accent};margin-bottom:12px;">What I Do</p>
@@ -454,7 +467,7 @@ function renderCleanMinimal(config: PortfolioConfig): string {
   if (config.projects.enabled && projects.length > 0) {
     const projs = projects.map(p => `
       <div style="background:${CM.bgAlt};border:1px solid ${CM.border};border-radius:16px;padding:28px;display:grid;grid-template-columns:${p.imageUrl ? "1fr 1fr" : "1fr"};gap:24px;align-items:start;" class="cm-project-card">
-        ${p.imageUrl ? `<img src="${escapeAttr(safeUrl(p.imageUrl))}" alt="" style="width:100%;height:180px;object-fit:cover;border-radius:12px;border:1px solid ${CM.border};" />` : ""}
+        ${p.imageUrl ? `<img src="${escapeAttr(safeImageUrl(p.imageUrl))}" alt="" style="width:100%;height:180px;object-fit:cover;border-radius:12px;border:1px solid ${CM.border};" />` : ""}
         <div>
           <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;">${tagsHtml(p.tags, accentLight, accent)}</div>
           <h3 style="font-family:Georgia,serif;font-size:22px;font-weight:800;color:${CM.text};margin:0 0 10px;">${escapeHtml(p.customTitle || p.originalName)}</h3>
@@ -477,7 +490,7 @@ function renderCleanMinimal(config: PortfolioConfig): string {
     const t = config.testimonials.items[0];
     const tCards = config.testimonials.items.map((tm, i) => `
       <div style="border-radius:24px;overflow:hidden;background:${accent};display:${tm.avatarUrl ? "grid" : "block"};grid-template-columns:${tm.avatarUrl ? "1fr 1fr" : "1fr"};${i > 0 ? "display:none;" : ""}">
-        ${tm.avatarUrl ? `<img src="${escapeAttr(safeUrl(tm.avatarUrl))}" alt="" style="width:100%;height:340px;object-fit:cover;display:block;" />` : ""}
+        ${tm.avatarUrl ? `<img src="${escapeAttr(safeImageUrl(tm.avatarUrl))}" alt="" style="width:100%;height:340px;object-fit:cover;display:block;" />` : ""}
         <div style="padding:48px 40px;display:flex;flex-direction:column;justify-content:space-between;">
           <p style="font-size:clamp(15px,1.8vw,19px);line-height:1.75;color:#fff;font-style:italic;margin:0 0 32px;font-family:Georgia,serif;">"${escapeHtml(tm.quote)}"</p>
           <div style="display:flex;align-items:center;gap:12px;">
@@ -595,7 +608,7 @@ function renderAurora(config: PortfolioConfig): string {
         ${config.hero.photoUrl ? `<div style="display:flex;justify-content:flex-end;" class="ar-hero-photo">
           <div style="position:relative;">
             <div style="position:absolute;inset:-2px;border-radius:18px;background:linear-gradient(135deg,${pal.accent},${pal.accentPurple},${pal.accentPink});opacity:0.6;"></div>
-            <img src="${escapeAttr(safeUrl(config.hero.photoUrl))}" alt="" style="position:relative;width:280px;height:320px;object-fit:cover;border-radius:16px;display:block;" />
+            <img src="${escapeAttr(safeImageUrl(config.hero.photoUrl))}" alt="" style="position:relative;width:280px;height:320px;object-fit:cover;border-radius:16px;display:block;" />
           </div>
         </div>` : ""}
       </div>
@@ -630,7 +643,7 @@ function renderAurora(config: PortfolioConfig): string {
   if (config.projects.enabled && projects.length > 0) {
     const projs = projects.map(proj => `
       <div class="card" style="display:flex;flex-direction:column;">
-        ${proj.imageUrl ? `<img src="${escapeAttr(safeUrl(proj.imageUrl))}" alt="" style="width:100%;height:160px;object-fit:cover;border-radius:10px;margin-bottom:16px;" />` : ""}
+        ${proj.imageUrl ? `<img src="${escapeAttr(safeImageUrl(proj.imageUrl))}" alt="" style="width:100%;height:160px;object-fit:cover;border-radius:10px;margin-bottom:16px;" />` : ""}
         <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;">${tagsHtml(proj.tags, pal.blob1, pal.accent)}</div>
         <h3 style="color:${AR.text};font-size:17px;font-weight:700;margin:0 0 8px;">${escapeHtml(proj.customTitle || proj.originalName)}</h3>
         <p style="color:${AR.muted};font-size:14px;line-height:1.7;flex:1;margin:0 0 16px;">${escapeHtml(proj.customDescription || proj.originalDescription || "No description.")}</p>
