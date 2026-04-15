@@ -45,8 +45,8 @@ export async function PUT(req: Request) {
 
     await prisma.portfolio.upsert({
       where: { userId: session.user.id },
-      create: { userId: session.user.id, config: body.config },
-      update: { config: body.config },
+      create: { userId: session.user.id, config: body.config as object },
+      update: { config: body.config as object },
     });
 
     return NextResponse.json({ ok: true });

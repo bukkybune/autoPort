@@ -114,6 +114,21 @@ const SUGGESTED_TAGS: Record<string, string[]> = {
   Svelte: ["Svelte", "JavaScript"],
 };
 
+/**
+ * Converts Google Drive share/view links to a directly embeddable thumbnail URL.
+ * `uc?export=view` is unreliable (Google serves an interstitial virus-scan page
+ * instead of image bytes). The thumbnail endpoint always returns raw image data.
+ * Passes all other URLs through unchanged.
+ */
+function resolveImageUrl(raw: string): string {
+  const trimmed = raw.trim();
+  // Matches: drive.google.com/file/d/FILE_ID/... or open?id=FILE_ID or uc?...&id=FILE_ID
+  const m = trimmed.match(/drive\.google\.com\/(?:file\/d\/|open\?id=)([\w-]+)/)
+    ?? trimmed.match(/drive\.google\.com\/uc\?.*[?&]id=([\w-]+)/);
+  if (m) return `https://drive.google.com/thumbnail?id=${m[1]}&sz=s800`;
+  return trimmed;
+}
+
 function repoToCustomized(repo: GitHubRepo, order: number): CustomizedProject {
   return {
     id: String(repo.id),
@@ -481,6 +496,7 @@ export function CustomizeClient() {
 
   // Resizable panel
   const [editorW, setEditorW] = useState(400);
+  const [photoUrlWarn, setPhotoUrlWarn] = useState<string | null>(null);
   // Keep a ref in sync so the drag closure doesn't need editorW in its deps array
   const editorWRef = useRef(editorW);
   useEffect(() => { editorWRef.current = editorW; }, [editorW]);
@@ -526,6 +542,13 @@ export function CustomizeClient() {
     async function loadConfig() {
       const projects = projectsFromStorage;
 
+      // True when the user just clicked "Create Portfolio" on the dashboard —
+      // SELECTED_REPOS_KEY is only set by that action.
+      const hasFreshSelection =
+        typeof window !== "undefined" &&
+        !!sessionStorage.getItem(SELECTED_REPOS_KEY) &&
+        (projects?.length ?? 0) > 0;
+
       // Merge a persisted config with current defaults so any sections added
       // after the config was originally saved are present with safe empty values.
       function mergeWithDefaults(persisted: PortfolioConfig): PortfolioConfig {
@@ -539,6 +562,24 @@ export function CustomizeClient() {
         };
       }
 
+      // When the user picked new repos from the dashboard, always apply them —
+      // but preserve any existing customisations (title, description, image, etc.)
+      // for repos that are still in the new selection, matched by repo ID.
+      function applyFreshSelection(base: PortfolioConfig): PortfolioConfig {
+        if (!projects) return base;
+        const existingById = new Map(
+          (base.projects?.items ?? []).map((p) => [p.id, p])
+        );
+        const mergedItems = projects.map((p, i) => ({
+          ...(existingById.get(p.id) ?? p),
+          order: i,
+        }));
+        return {
+          ...base,
+          projects: { enabled: base.projects?.enabled ?? true, items: mergedItems },
+        };
+      }
+
       // 1. Try loading the saved config from the server first
       try {
         const res = await fetch("/api/portfolio");
@@ -546,12 +587,7 @@ export function CustomizeClient() {
           const data = await res.json() as { config: PortfolioConfig | null };
           if (data.config) {
             const merged = mergeWithDefaults(data.config);
-            // If fresh repos were selected from the dashboard, inject them
-            if (projects && projects.length > 0 && !merged.projects?.items?.length) {
-              setConfig({ ...merged, projects: { ...merged.projects, items: projects.map((p, i) => ({ ...p, order: i })) } });
-            } else {
-              setConfig(merged);
-            }
+            setConfig(hasFreshSelection ? applyFreshSelection(merged) : merged);
             setLoading(false);
             return;
           }
@@ -565,11 +601,7 @@ export function CustomizeClient() {
         const saved = loadConfigFromStorage();
         if (saved) {
           const merged = mergeWithDefaults(saved);
-          if (projects && projects.length > 0 && (!merged.projects?.items?.length || merged.projects.items.length === 0)) {
-            setConfig({ ...merged, projects: { ...merged.projects, items: projects.map((p, i) => ({ ...p, order: i })) } });
-          } else {
-            setConfig(merged);
-          }
+          setConfig(hasFreshSelection ? applyFreshSelection(merged) : merged);
         } else {
           if (!projects || projects.length === 0) {
             setLoadError("empty");
@@ -850,14 +882,57 @@ export function CustomizeClient() {
               </div>
               <div>
                 <label htmlFor="hero-photo" className="block text-xs font-medium text-slate-400 uppercase tracking-wide mb-1.5">Profile photo URL</label>
-                <input
-                  id="hero-photo"
-                  type="url"
-                  value={config.hero.photoUrl ?? ""}
-                  onChange={(e) => updateConfig("hero", { ...config.hero, photoUrl: e.target.value.trim() || undefined })}
-                  placeholder="https://..."
-                  className="w-full rounded-lg border border-slate-700 bg-slate-800/80 px-3 py-2.5 text-slate-100 text-sm focus:border-amber-500/60 focus:outline-none focus:ring-1 focus:ring-amber-500/30"
-                />
+                <div className="flex gap-2 items-start">
+                  {config.hero.photoUrl && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={config.hero.photoUrl}
+                      alt="Photo preview"
+                      className="h-10 w-10 rounded-lg object-cover border border-slate-700 shrink-0 bg-slate-800"
+                      onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                      onLoad={(e) => { (e.target as HTMLImageElement).style.display = "block"; }}
+                    />
+                  )}
+                  <input
+                    id="hero-photo"
+                    type="text"
+                    value={config.hero.photoUrl ?? ""}
+                    onChange={(e) => {
+                      setPhotoUrlWarn(null);
+                      updateConfig("hero", { ...config.hero, photoUrl: e.target.value || undefined });
+                    }}
+                    onBlur={(e) => {
+                      const val = e.target.value.trim();
+                      if (!val) {
+                        setPhotoUrlWarn(null);
+                        updateConfig("hero", { ...config.hero, photoUrl: undefined });
+                        return;
+                      }
+                      // Detect Google Drive folder / homepage (not a file)
+                      if (/drive\.google\.com\/(drive|folders)\//.test(val)) {
+                        setPhotoUrlWarn('That\'s a Drive folder or homepage link — not an image. In Drive, open your photo file → click the three-dot menu → "Share" → copy the link, then paste it here.');
+                        updateConfig("hero", { ...config.hero, photoUrl: undefined });
+                        return;
+                      }
+                      setPhotoUrlWarn(null);
+                      const resolved = resolveImageUrl(val);
+                      updateConfig("hero", { ...config.hero, photoUrl: resolved || undefined });
+                    }}
+                    placeholder="https://github.com/your-username.png"
+                    className={`w-full rounded-lg border px-3 py-2.5 text-slate-100 text-sm focus:outline-none focus:ring-1 bg-slate-800/80 ${
+                      photoUrlWarn
+                        ? "border-amber-500/60 focus:border-amber-500/60 focus:ring-amber-500/30"
+                        : "border-slate-700 focus:border-amber-500/60 focus:ring-amber-500/30"
+                    }`}
+                  />
+                </div>
+                {photoUrlWarn ? (
+                  <p className="mt-1.5 text-[11px] text-amber-400 leading-relaxed">{photoUrlWarn}</p>
+                ) : (
+                  <p className="mt-1 text-[11px] text-slate-500">
+                    Easiest: use <code className="text-slate-400">https://github.com/your-username.png</code>. Google Drive file links are auto-converted.
+                  </p>
+                )}
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>

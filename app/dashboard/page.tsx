@@ -15,17 +15,19 @@ export default async function DashboardPage() {
   const userId = session.user.id;
 
   let connected: Awaited<ReturnType<typeof prisma.connectedRepo.findUnique>> = null;
+  let portfolioMeta: { isPublished: boolean; slug: string | null } | null = null;
   let databaseError: string | null = null;
 
   try {
-    connected = await prisma.connectedRepo.findUnique({
-      where: {
-        userId_provider: {
-          userId,
-          provider: "github",
-        },
-      },
-    });
+    [connected, portfolioMeta] = await Promise.all([
+      prisma.connectedRepo.findUnique({
+        where: { userId_provider: { userId, provider: "github" } },
+      }),
+      prisma.portfolio.findUnique({
+        where: { userId },
+        select: { isPublished: true, slug: true },
+      }),
+    ]);
   } catch (e) {
     console.error("Database connection failed:", e);
     databaseError =
@@ -87,6 +89,7 @@ export default async function DashboardPage() {
       }
       initialRepos={repos}
       githubError={githubError}
+      portfolio={portfolioMeta}
     />
   );
 }

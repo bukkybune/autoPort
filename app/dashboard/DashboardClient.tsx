@@ -5,10 +5,10 @@ import {
   SELECTED_REPOS_KEY,
   CUSTOMIZED_PROJECTS_KEY,
 } from "../types/customize";
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Github, Star, HelpCircle } from "lucide-react";
+import { Github, Star, HelpCircle, Globe, Copy, Check, ExternalLink } from "lucide-react";
 import { Tour, type TourStep } from "../components/Tour";
 
 const TOUR_KEY = "autoport_tour_dashboard_v1";
@@ -24,6 +24,7 @@ type DashboardClientProps = {
   } | null;
   initialRepos: GitHubRepo[];
   githubError?: string | null;
+  portfolio?: { isPublished: boolean; slug: string | null } | null;
 };
 
 const LANG_COLORS: Record<string, string> = {
@@ -59,12 +60,53 @@ export function DashboardClient({
   connectedRepo,
   initialRepos,
   githubError = null,
+  portfolio = null,
 }: DashboardClientProps) {
   const router = useRouter();
   const [selected, setSelected] = useState<Set<number>>(() => new Set<number>());
   const [disconnectError, setDisconnectError] = useState<string | null>(null);
   const [disconnecting, setDisconnecting] = useState(false);
   const [isNavigating, setIsNavigating] = useState(false);
+
+  // Portfolio sharing state
+  const [isPublished, setIsPublished] = useState(portfolio?.isPublished ?? false);
+  const [portfolioSlug, setPortfolioSlug] = useState(portfolio?.slug ?? null);
+  const [publishing, setPublishing] = useState(false);
+  const [publishError, setPublishError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  const portfolioUrl = portfolioSlug ? `/p/${portfolioSlug}` : null;
+
+  const handlePublishToggle = useCallback(async () => {
+    setPublishing(true);
+    setPublishError(null);
+    try {
+      const res = await fetch("/api/portfolio/publish", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ publish: !isPublished }),
+      });
+      const data = await res.json() as { isPublished?: boolean; slug?: string | null; url?: string | null; error?: string };
+      if (!res.ok) {
+        setPublishError(data.error ?? "Failed to update portfolio visibility.");
+        return;
+      }
+      setIsPublished(data.isPublished ?? false);
+      setPortfolioSlug(data.slug ?? null);
+    } catch {
+      setPublishError("Network error. Check your connection and try again.");
+    } finally {
+      setPublishing(false);
+    }
+  }, [isPublished]);
+
+  const handleCopyLink = useCallback(async () => {
+    if (!portfolioSlug) return;
+    const url = `${window.location.origin}/p/${portfolioSlug}`;
+    await navigator.clipboard.writeText(url);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }, [portfolioSlug]);
 
   const sortedRepos = useMemo(
     () => [...initialRepos].sort((a, b) => b.stargazers_count - a.stargazers_count),
@@ -246,6 +288,89 @@ export function DashboardClient({
           <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-200" role="alert">
             {githubError}
           </div>
+        )}
+
+        {/* Portfolio sharing */}
+        {portfolio !== null && (
+          <section className="space-y-4">
+            <h2 className="text-base font-semibold text-slate-100">Your Portfolio</h2>
+
+            <div className={`rounded-2xl border px-5 py-4 ${
+              isPublished
+                ? "border-blue-500/30 bg-blue-500/5"
+                : "border-slate-700/60 bg-slate-900/40"
+            }`}>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div className="flex items-start gap-3">
+                  <div className={`mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg border ${
+                    isPublished
+                      ? "border-blue-500/40 bg-blue-500/10"
+                      : "border-slate-700/60 bg-slate-800/80"
+                  }`}>
+                    <Globe className={`h-4 w-4 ${isPublished ? "text-blue-400" : "text-slate-500"}`} aria-hidden />
+                  </div>
+                  <div>
+                    {isPublished && portfolioUrl ? (
+                      <>
+                        <p className="text-sm font-medium text-blue-300">Published</p>
+                        <a
+                          href={portfolioUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="mt-0.5 flex items-center gap-1 text-xs text-blue-200/70 hover:text-blue-200 transition-colors"
+                        >
+                          {`${typeof window !== "undefined" ? window.location.origin : ""}/p/${portfolioSlug}`}
+                          <ExternalLink className="h-3 w-3" aria-hidden />
+                        </a>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-sm font-medium text-slate-300">Not published</p>
+                        <p className="mt-0.5 text-xs text-slate-500">
+                          {portfolio
+                            ? "Publish to get a shareable public link."
+                            : "Create and save a portfolio first, then publish it here."}
+                        </p>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {isPublished && portfolioSlug && (
+                    <button
+                      type="button"
+                      onClick={handleCopyLink}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800/80 px-3 py-1.5 text-xs font-medium text-slate-200 transition-colors hover:bg-slate-700"
+                      aria-label="Copy portfolio link"
+                    >
+                      {copied ? (
+                        <><Check className="h-3.5 w-3.5 text-emerald-400" aria-hidden />Copied!</>
+                      ) : (
+                        <><Copy className="h-3.5 w-3.5" aria-hidden />Copy link</>
+                      )}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={handlePublishToggle}
+                    disabled={publishing || !portfolio}
+                    className={`inline-flex items-center justify-center rounded-lg px-4 py-1.5 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+                      isPublished
+                        ? "border border-red-500/40 text-red-300 hover:bg-red-500/10"
+                        : "bg-blue-600 text-white hover:bg-blue-500"
+                    }`}
+                  >
+                    {publishing ? "Saving…" : isPublished ? "Unpublish" : "Publish"}
+                  </button>
+                </div>
+              </div>
+
+              {publishError && (
+                <p className="mt-3 text-xs text-red-400" role="alert">{publishError}</p>
+              )}
+            </div>
+          </section>
         )}
 
         {/* Repository grid */}
